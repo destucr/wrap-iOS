@@ -6,7 +6,7 @@ class ProductDetailViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
     private let productId: UUID
-    private var productDetail: ProductDetail?
+    private var product: Product?
     
     // UI Elements
     private let scrollView = UIScrollView()
@@ -22,21 +22,21 @@ class ProductDetailViewController: UIViewController {
     
     private let nameLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 24, weight: .bold)
+        label.font = Brand.Typography.header(size: 28)
         label.numberOfLines = 0
         return label
     }()
     
     private let priceLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 20, weight: .semibold)
-        label.textColor = .systemGreen
+        label.font = Brand.Typography.header(size: 22)
+        label.textColor = Brand.primary
         return label
     }()
     
     private let descriptionLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 16)
+        label.font = Brand.Typography.body()
         label.numberOfLines = 0
         label.textColor = .secondaryLabel
         return label
@@ -45,10 +45,10 @@ class ProductDetailViewController: UIViewController {
     private let addToCartButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Add to Cart", for: .normal)
-        button.backgroundColor = .systemBlue
+        button.backgroundColor = Brand.primary
         button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 12
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .bold)
+        button.roundCorners(radius: 16)
+        button.titleLabel?.font = Brand.Typography.subheader()
         return button
     }()
     
@@ -89,11 +89,11 @@ class ProductDetailViewController: UIViewController {
         
         imageView.snp.makeConstraints { make in
             make.top.leading.trailing.equalToSuperview()
-            make.height.equalTo(300)
+            make.height.equalTo(350)
         }
         
         nameLabel.snp.makeConstraints { make in
-            make.top.equalTo(imageView.snp.bottom).offset(20)
+            make.top.equalTo(imageView.snp.bottom).offset(24)
             make.leading.trailing.equalToSuperview().inset(20)
         }
         
@@ -108,60 +108,57 @@ class ProductDetailViewController: UIViewController {
         }
         
         addToCartButton.snp.makeConstraints { make in
-            make.top.equalTo(descriptionLabel.snp.bottom).offset(30)
+            make.top.equalTo(descriptionLabel.snp.bottom).offset(32)
             make.leading.trailing.equalToSuperview().inset(20)
-            make.height.equalTo(56)
-            make.bottom.equalToSuperview().offset(-30)
+            make.height.equalTo(60)
+            make.bottom.equalToSuperview().offset(-40)
         }
         
         addToCartButton.addTarget(self, action: #selector(handleAddToCart), for: .touchUpInside)
     }
     
     @objc private func handleAddToCart() {
-        guard let detail = productDetail, let variant = detail.variants.first else { return }
+        guard let product = product, let variant = product.variants?.first else { return }
         
-        // 1. Haptic Feedback
         let generator = UIImpactFeedbackGenerator(style: .medium)
         generator.impactOccurred()
         
-        // 2. Local Add
         CartManager.shared.add(
             variantId: variant.id,
-            name: detail.product.name,
-            price: variant.priceOverride ?? detail.product.basePrice
+            name: product.name,
+            price: variant.priceOverride ?? product.basePrice
         )
         
-        // 3. UI Feedback (Temporary button state)
         let originalTitle = addToCartButton.title(for: .normal)
-        addToCartButton.setTitle("Added!", for: .normal)
-        addToCartButton.backgroundColor = .systemGray
+        addToCartButton.setTitle("Added to Cart!", for: .normal)
+        addToCartButton.backgroundColor = .systemGray2
         addToCartButton.isEnabled = false
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
             self?.addToCartButton.setTitle(originalTitle, for: .normal)
-            self?.addToCartButton.backgroundColor = .systemBlue
+            self?.addToCartButton.backgroundColor = Brand.primary
             self?.addToCartButton.isEnabled = true
         }
     }
     
     private func fetchProductDetail() {
-        NetworkManager.shared.request(endpoint: "/catalog/products/\(productId.uuidString.lowercased())") { [weak self] (result: Result<ProductDetail, NetworkError>) in
-            switch result {
-            case .success(let detail):
-                self?.productDetail = detail
-                self?.updateUI(with: detail)
-            case .failure(let error):
+        Task {
+            do {
+                let fetchedProduct: Product = try await NetworkManager.shared.request(endpoint: "/catalog/products/\(productId.uuidString.lowercased())")
+                self.product = fetchedProduct
+                self.updateUI(with: fetchedProduct)
+            } catch {
                 print("Error fetching details: \(error)")
             }
         }
     }
     
-    private func updateUI(with detail: ProductDetail) {
-        nameLabel.text = detail.product.name
-        priceLabel.text = "Rp \(Int(detail.product.basePrice))"
-        descriptionLabel.text = detail.product.description
+    private func updateUI(with product: Product) {
+        nameLabel.text = product.name
+        priceLabel.text = "Rp \(Int(product.basePrice))"
+        descriptionLabel.text = product.description
         
-        if let imageUrl = detail.product.images?.first, let url = URL(string: imageUrl) {
+        if let imageUrl = product.images?.first, let url = URL(string: imageUrl) {
             imageView.kf.setImage(with: url)
         }
     }

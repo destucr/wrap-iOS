@@ -81,14 +81,15 @@ class LoginViewController: UIViewController {
         
         setLoading(true)
         
-        AuthManager.shared.login(email: email, password: password) { [weak self] result in
-            self?.setLoading(false)
-            switch result {
-            case .success(let response):
+        Task {
+            do {
+                let response = try await AuthManager.shared.login(email: email, password: password)
+                setLoading(false)
                 print("Login Success! Token: \(response.token)")
-                self?.coordinator?.showCatalog()
-            case .failure(let error):
-                self?.showAlert(message: "Login failed: \(error)")
+                coordinator?.showCatalog()
+            } catch {
+                setLoading(false)
+                showAlert(message: "Login failed: \(error)")
             }
         }
     }

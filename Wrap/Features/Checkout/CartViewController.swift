@@ -4,22 +4,25 @@ import SnapKit
 class CartItemCell: UITableViewCell {
     static let identifier = "CartItemCell"
     
+    private let containerView = UIView()
+    
     private let nameLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 16, weight: .medium)
+        label.font = Brand.Typography.subheader(size: 16)
         return label
     }()
     
     private let quantityLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 14)
+        label.font = Brand.Typography.body(size: 14)
         label.textColor = .secondaryLabel
         return label
     }()
     
     private let priceLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 16, weight: .semibold)
+        label.font = Brand.Typography.subheader(size: 16)
+        label.textColor = Brand.primary
         return label
     }()
     
@@ -33,9 +36,21 @@ class CartItemCell: UITableViewCell {
     }
     
     private func setupUI() {
-        contentView.addSubview(nameLabel)
-        contentView.addSubview(quantityLabel)
-        contentView.addSubview(priceLabel)
+        backgroundColor = .clear
+        selectionStyle = .none
+        
+        contentView.addSubview(containerView)
+        containerView.backgroundColor = .systemBackground
+        containerView.roundCorners(radius: 12)
+        
+        containerView.addSubview(nameLabel)
+        containerView.addSubview(quantityLabel)
+        containerView.addSubview(priceLabel)
+        
+        containerView.snp.makeConstraints { make in
+            make.top.bottom.equalToSuperview().inset(6)
+            make.leading.trailing.equalToSuperview().inset(16)
+        }
         
         nameLabel.snp.makeConstraints { make in
             make.top.leading.equalToSuperview().inset(16)
@@ -62,21 +77,26 @@ class CartItemCell: UITableViewCell {
 class CartViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
-    private let tableView = UITableView()
+    private let tableView: UITableView = {
+        let tv = UITableView()
+        tv.separatorStyle = .none
+        tv.backgroundColor = .secondarySystemBackground
+        return tv
+    }()
     
     private let checkoutButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("Checkout", for: .normal)
-        button.backgroundColor = .systemGreen
+        button.setTitle("Proceed to Checkout", for: .normal)
+        button.backgroundColor = Brand.primary
         button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 12
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .bold)
+        button.roundCorners(radius: 16)
+        button.titleLabel?.font = Brand.Typography.subheader()
         return button
     }()
     
     private let totalLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 20, weight: .bold)
+        label.font = Brand.Typography.header(size: 22)
         label.textAlignment = .right
         return label
     }()
@@ -94,7 +114,8 @@ class CartViewController: UIViewController {
     
     private func setupUI() {
         title = "My Cart"
-        view.backgroundColor = .systemBackground
+        navigationController?.navigationBar.prefersLargeTitles = true
+        view.backgroundColor = .secondarySystemBackground
         
         view.addSubview(tableView)
         view.addSubview(totalLabel)
@@ -105,19 +126,19 @@ class CartViewController: UIViewController {
         tableView.register(CartItemCell.self, forCellReuseIdentifier: CartItemCell.identifier)
         
         checkoutButton.snp.makeConstraints { make in
-            make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-20)
+            make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-24)
             make.leading.trailing.equalToSuperview().inset(20)
-            make.height.equalTo(56)
+            make.height.equalTo(60)
         }
         
         totalLabel.snp.makeConstraints { make in
-            make.bottom.equalTo(checkoutButton.snp.top).offset(-20)
+            make.bottom.equalTo(checkoutButton.snp.top).offset(-24)
             make.leading.trailing.equalToSuperview().inset(20)
         }
         
         tableView.snp.makeConstraints { make in
             make.top.leading.trailing.equalToSuperview()
-            make.bottom.equalTo(totalLabel.snp.top).offset(-10)
+            make.bottom.equalTo(totalLabel.snp.top).offset(-12)
         }
         
         checkoutButton.addTarget(self, action: #selector(handleCheckout), for: .touchUpInside)
@@ -125,19 +146,27 @@ class CartViewController: UIViewController {
     
     private func updateTotal() {
         totalLabel.text = "Total: Rp \(Int(CartManager.shared.totalAmount))"
-        checkoutButton.isEnabled = !CartManager.shared.items.isEmpty
-        checkoutButton.alpha = CartManager.shared.items.isEmpty ? 0.5 : 1.0
+        let isEmpty = CartManager.shared.items.isEmpty
+        checkoutButton.isEnabled = !isEmpty
+        checkoutButton.alpha = isEmpty ? 0.5 : 1.0
+        
+        // Update tab badge as well
+        if let cartTab = tabBarController?.tabBar.items?[1] {
+            let count = CartManager.shared.totalCount
+            cartTab.badgeValue = count > 0 ? "\(count)" : nil
+            cartTab.badgeColor = Brand.primary
+        }
     }
     
     @objc private func handleCheckout() {
-        CartManager.shared.syncWithBackend { [weak self] success in
-            if success {
-                self?.coordinator?.showCheckoutPreview()
-            } else {
-                // Show alert error
+        Task {
+            do {
+                try await CartManager.shared.syncWithBackend()
+                coordinator?.showCheckoutPreview()
+            } catch {
                 let alert = UIAlertController(title: "Error", message: "Could not sync your cart. Please try again.", preferredStyle: .alert)
                 alert.addAction(UIAlertAction(title: "OK", style: .default))
-                self?.present(alert, animated: true)
+                present(alert, animated: true)
             }
         }
     }

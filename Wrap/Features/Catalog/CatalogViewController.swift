@@ -5,25 +5,27 @@ import Kingfisher
 class ProductCell: UITableViewCell {
     static let identifier = "ProductCell"
     
+    private let containerView = UIView()
+    
     private let productImageView: UIImageView = {
         let iv = UIImageView()
         iv.contentMode = .scaleAspectFill
         iv.clipsToBounds = true
-        iv.layer.cornerRadius = 8
+        iv.layer.cornerRadius = 12
         iv.backgroundColor = .secondarySystemBackground
         return iv
     }()
     
     private let nameLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 18, weight: .semibold)
+        label.font = Brand.Typography.subheader()
         return label
     }()
     
     private let priceLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 16, weight: .regular)
-        label.textColor = .systemGreen
+        label.font = Brand.Typography.body()
+        label.textColor = Brand.primary
         return label
     }()
     
@@ -37,23 +39,34 @@ class ProductCell: UITableViewCell {
     }
     
     private func setupUI() {
-        contentView.addSubview(productImageView)
+        backgroundColor = .clear
+        selectionStyle = .none
+        
+        contentView.addSubview(containerView)
+        containerView.backgroundColor = .systemBackground
+        containerView.roundCorners(radius: 16)
+        // containerView.applyShadow() // Optional: iOS HIG often prefers subtle outlines or background contrast
+        
+        containerView.addSubview(productImageView)
         
         let stackView = UIStackView(arrangedSubviews: [nameLabel, priceLabel])
         stackView.axis = .vertical
         stackView.spacing = 4
-        contentView.addSubview(stackView)
+        containerView.addSubview(stackView)
+        
+        containerView.snp.makeConstraints { make in
+            make.top.bottom.equalToSuperview().inset(8)
+            make.leading.trailing.equalToSuperview().inset(16)
+        }
         
         productImageView.snp.makeConstraints { make in
-            make.leading.equalToSuperview().offset(16)
-            make.centerY.equalToSuperview()
-            make.size.equalTo(60)
-            make.top.bottom.equalToSuperview().inset(12)
+            make.leading.top.bottom.equalToSuperview().inset(12)
+            make.size.equalTo(80)
         }
         
         stackView.snp.makeConstraints { make in
             make.leading.equalTo(productImageView.snp.trailing).offset(16)
-            make.trailing.equalToSuperview().offset(-16)
+            make.trailing.equalToSuperview().inset(16)
             make.centerY.equalToSuperview()
         }
     }
@@ -75,7 +88,13 @@ class CatalogViewController: UIViewController {
     weak var coordinator: MainCoordinator?
     private var products: [Product] = []
     
-    private let tableView = UITableView()
+    private let tableView: UITableView = {
+        let tv = UITableView()
+        tv.separatorStyle = .none
+        tv.backgroundColor = .secondarySystemBackground
+        return tv
+    }()
+    
     private let activityIndicator = UIActivityIndicatorView(style: .large)
     
     override func viewDidLoad() {
@@ -86,31 +105,21 @@ class CatalogViewController: UIViewController {
     }
     
     private func setupObservers() {
-        NotificationCenter.default.addObserver(self, selector: #selector(updateCartButton), name: .cartUpdated, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(updateCartBadge), name: .cartUpdated, object: nil)
     }
     
-    @objc private func updateCartButton() {
+    @objc private func updateCartBadge() {
         let count = CartManager.shared.totalCount
-        if count > 0 {
-            navigationItem.rightBarButtonItem?.title = "Cart (\(count))"
-            navigationItem.rightBarButtonItem?.image = nil
-        } else {
-            navigationItem.rightBarButtonItem?.title = nil
-            navigationItem.rightBarButtonItem?.image = UIImage(systemName: "cart")
+        if let cartTab = tabBarController?.tabBar.items?[1] {
+            cartTab.badgeValue = count > 0 ? "\(count)" : nil
+            cartTab.badgeColor = Brand.primary
         }
     }
     
     private func setupUI() {
-        title = "Wrap Catalog"
-        view.backgroundColor = .systemBackground
-        
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "cart"),
-            style: .plain,
-            target: self,
-            action: #selector(handleShowCart)
-        )
-        updateCartButton()
+        title = "Wrap"
+        navigationController?.navigationBar.prefersLargeTitles = true
+        view.backgroundColor = .secondarySystemBackground
         
         view.addSubview(tableView)
         view.addSubview(activityIndicator)
@@ -126,21 +135,20 @@ class CatalogViewController: UIViewController {
         activityIndicator.snp.makeConstraints { make in
             make.center.equalToSuperview()
         }
-    }
-    
-    @objc private func handleShowCart() {
-        coordinator?.showCart()
+        
+        updateCartBadge()
     }
     
     private func fetchCatalog() {
         activityIndicator.startAnimating()
-        NetworkManager.shared.request(endpoint: "/catalog/products") { [weak self] (result: Result<[Product], NetworkError>) in
-            self?.activityIndicator.stopAnimating()
-            switch result {
-            case .success(let fetchedProducts):
-                self?.products = fetchedProducts
-                self?.tableView.reloadData()
-            case .failure(let error):
+        Task {
+            do {
+                let fetchedProducts: [Product] = try await NetworkManager.shared.request(endpoint: "/catalog/products")
+                activityIndicator.stopAnimating()
+                self.products = fetchedProducts
+                self.tableView.reloadData()
+            } catch {
+                activityIndicator.stopAnimating()
                 print("Failed to fetch catalog: \(error)")
             }
         }
@@ -161,7 +169,6 @@ extension CatalogViewController: UITableViewDelegate, UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
         let product = products[indexPath.row]
         coordinator?.showProductDetail(productId: product.id)
     }

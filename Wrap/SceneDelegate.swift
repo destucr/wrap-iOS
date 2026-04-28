@@ -21,12 +21,17 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         }
         
         let navController = UINavigationController()
-        coordinator = MainCoordinator(navigationController: navController)
+        window = UIWindow(windowScene: windowScene)
+        
+        coordinator = MainCoordinator(navigationController: navController, window: window)
         coordinator?.start()
         
-        window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = navController
         window?.makeKeyAndVisible()
+        
+        // Handle Cold Start from URL
+        if let urlContext = connectionOptions.urlContexts.first {
+            handleURL(urlContext.url)
+        }
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {}
@@ -34,4 +39,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneWillResignActive(_ scene: UIScene) {}
     func sceneWillEnterForeground(_ scene: UIScene) {}
     func sceneDidEnterBackground(_ scene: UIScene) {}
+    
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        guard let url = URLContexts.first?.url else { return }
+        handleURL(url)
+    }
+    
+    private func handleURL(_ url: URL) {
+        // Expected: wrapapp://payment/success
+        guard url.scheme == "wrapapp" else { return }
+        
+        if url.host == "payment", url.path == "/success" {
+            coordinator?.showOrderTracking(orderId: "LATEST")
+        }
+    }
 }

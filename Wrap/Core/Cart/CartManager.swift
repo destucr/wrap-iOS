@@ -2,6 +2,20 @@ import Foundation
 import SwiftData
 import UIKit
 
+struct OrderResponse: Codable {
+    let orderId: UUID
+    let total: Double
+    let expiresAt: Date
+    let paymentUrl: String
+    
+    enum CodingKeys: String, CodingKey {
+        case total
+        case orderId = "order_id"
+        case expiresAt = "expires_at"
+        case paymentUrl = "payment_url"
+    }
+}
+
 class CartManager {
     static let shared = CartManager()
     
@@ -58,9 +72,11 @@ class CartManager {
     }
     
     // MARK: - Sync Logic
-    func syncWithBackend(completion: @escaping (Bool) -> Void) {
+    func syncWithBackend() async throws {
         guard !isSyncing else { return }
         isSyncing = true
+        
+        defer { isSyncing = false }
         
         let payload: [String: Any] = [
             "items": items.map { [
@@ -70,23 +86,13 @@ class CartManager {
         ]
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
-            isSyncing = false
-            completion(false)
-            return
+            throw NetworkError.decodingError
         }
         
-        NetworkManager.shared.request(endpoint: "/user/cart/sync", method: "POST", body: jsonData) { [weak self] (result: Result<[String: String], NetworkError>) in
-            self?.isSyncing = false
-            switch result {
-            case .success:
-                completion(true)
-            case .failure:
-                completion(false)
-            }
-        }
+        let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/user/cart/sync", method: "POST", body: jsonData)
     }
     
-    func placeOrder(address: [String: String], completion: @escaping (Result<[String: String], NetworkError>) -> Void) {
+    func placeOrder(address: [String: String]) async throws -> OrderResponse {
         let payload: [String: Any] = [
             "items": items.map { [
                 "variant_id": $0.variantId.uuidString.lowercased(),
@@ -96,13 +102,10 @@ class CartManager {
         ]
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
-            completion(.failure(.decodingError))
-            return
+            throw NetworkError.decodingError
         }
         
-        NetworkManager.shared.request(endpoint: "/checkout/place", method: "POST", body: jsonData) { (result: Result<[String: String], NetworkError>) in
-            completion(result)
-        }
+        return try await NetworkManager.shared.request(endpoint: "/checkout/place", method: "POST", body: jsonData)
     }
 }
 

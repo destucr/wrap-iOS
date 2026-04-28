@@ -5,6 +5,9 @@ enum NetworkError: Error {
     case noData
     case decodingError
     case serverError(String)
+    case unauthorized // 401
+    case notFound     // 404
+    case conflict     // 409
 }
 
 class NetworkManager {
@@ -38,16 +41,15 @@ class NetworkManager {
         return authToken != nil
     }
     
+    @discardableResult
     func request<T: Codable>(
         endpoint: String,
         method: String = "GET",
         body: Data? = nil,
-        isLoadTest: Bool = false,
-        completion: @escaping (Result<T, NetworkError>) -> Void
-    ) {
+        isLoadTest: Bool = false
+    ) async throws -> T {
         guard let url = URL(string: "\(baseURL)\(endpoint)") else {
-            completion(.failure(.invalidURL))
-            return
+            throw NetworkError.invalidURL
         }
         
         var request = URLRequest(url: url)
@@ -65,60 +67,54 @@ class NetworkManager {
         
         request.httpBody = body
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(.failure(.serverError(error.localizedDescription)))
-                return
-            }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.noData
+        }
+        
+        switch httpResponse.statusCode {
+        case 200...299:
+            break
+        case 401:
+            throw NetworkError.unauthorized
+        case 404:
+            throw NetworkError.notFound
+        case 409:
+            throw NetworkError.conflict
+        default:
+            throw NetworkError.serverError("Status Code: \(httpResponse.statusCode)")
+        }
+        
+        do {
+            let decoder = JSONDecoder()
+            let isoFormatter = ISO8601DateFormatter()
             
-            guard let httpResponse = response as? HTTPURLResponse else {
-                completion(.failure(.noData))
-                return
-            }
-            
-            guard (200...299).contains(httpResponse.statusCode) else {
-                completion(.failure(.serverError("Status Code: \(httpResponse.statusCode)")))
-                return
-            }
-            
-            guard let data = data else {
-                completion(.failure(.noData))
-                return
-            }
-            
-            do {
-                let decoder = JSONDecoder()
-                // Go uses ISO8601 with fractional seconds often
-                let formatter = DateFormatter()
-                formatter.calendar = Calendar(identifier: .iso8601)
-                formatter.locale = Locale(identifier: "en_US_POSIX")
-                formatter.timeZone = TimeZone(secondsFromGMT: 0)
-                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX"
-                
-                decoder.dateDecodingStrategy = .custom({ decoder in
-                    let container = try decoder.singleValueContainer()
-                    let dateString = try container.decode(String.self)
-                    
-                    if let date = formatter.date(from: dateString) {
-                        return date
-                    }
-                    
-                    // Fallback to standard ISO8601
-                    let isoFormatter = ISO8601DateFormatter()
-                    if let date = isoFormatter.date(from: dateString) {
-                        return date
-                    }
-                    
-                    throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date string \(dateString)")
-                })
-                
-                let decodedData = try decoder.decode(T.self, from: data)
-                DispatchQueue.main.async {
-                    completion(.success(decodedData))
+            decoder.dateDecodingStrategy = .custom { decoder in
+                let container = try decoder.singleValueContainer()
+                let dateString = try container.decode(String.self)
+
+                // Create the formatter INSIDE the closure
+                let formatter = ISO8601DateFormatter()
+
+                // Try with fractional seconds
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                if let date = formatter.date(from: dateString) {
+                    return date
                 }
-            } catch {
-                completion(.failure(.decodingError))
+
+                // Fallback to standard
+                formatter.formatOptions = [.withInternetDateTime]
+                if let date = formatter.date(from: dateString) {
+                    return date
+                }
+
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid date: \(dateString)")
             }
-        }.resume()
+
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw NetworkError.decodingError
+        }
     }
 }

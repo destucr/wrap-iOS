@@ -8,9 +8,10 @@ struct Product: Codable {
     let basePrice: Double
     let images: [String]?
     let tags: [String]?
+    let variants: [ProductVariant]?
     
     enum CodingKeys: String, CodingKey {
-        case id, name, slug, description, tags, images
+        case id, name, slug, description, tags, images, variants
         case basePrice = "base_price"
     }
 }
@@ -31,9 +32,4 @@ struct ProductVariant: Codable {
         case qtyOnHand = "qty_on_hand"
         case weightGrams = "weight_grams"
     }
-}
-
-struct ProductDetail: Codable {
-    let product: Product
-    let variants: [ProductVariant]
 }
