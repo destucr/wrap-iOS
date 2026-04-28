@@ -37,12 +37,16 @@ We use **SwiftData** for order-grade local persistence.
 ... (existing networking)
 
 ## 🔐 Environment & Secrets
-We handle sensitive configurations in two ways:
+We handle sensitive configurations in three layers:
 
-1. **Firebase (`GoogleService-Info.plist`):** Contains your Google API keys, Project ID, and client configuration. This file must be manually added to the `Wrap/` directory from the Firebase Console. It is ignored by `.gitignore` in professional setups to prevent secret leakage.
-2. **App Environment (`Core/Config/Environment.swift`):** Centralizes internal API keys and URLs.
-   - `baseURL`: Points to the Azure VM.
-   - `isDevelopment`: Uses compiler flags (`#if DEBUG`) to toggle between sandbox and production environments.
+1. **Firebase (`GoogleService-Info.plist`):** Automatically managed by the Firebase SDK. Must be added to the project manually.
+2. **App Configuration (`Config.plist`):** A custom property list containing public identifiers (API URLs, Public Keys).
+   - This file is ignored by Git (`.gitignore`) to prevent credential leakage.
+   - A template `Config.plist` should be maintained locally.
+3. **Environment Wrapper (`Core/Config/Environment.swift`):** 
+   - Dynamically reads values from `Config.plist`.
+   - Prevents hardcoding of keys in Swift code.
+   - Provides a type-safe interface for the rest of the app.
 
 ## 🛠 Adding a New Feature
 1. Create a new folder under `Features/Name`.
