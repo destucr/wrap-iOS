@@ -39,6 +39,19 @@ class AuthManager {
         return response
     }
     
+    func googleLogin(idToken: String) async throws {
+        NetworkManager.shared.setAuthToken(idToken)
+        
+        // Sync User with Backend (Silent Registration)
+        var body: [String: String] = [:]
+        if let fcmToken = Messaging.messaging().fcmToken {
+            body["fcm_token"] = fcmToken
+        }
+        
+        let jsonData = try? JSONSerialization.data(withJSONObject: body)
+        let _: [String: Any] = try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: jsonData)
+    }
+    
     func syncFCMToken(_ fcmToken: String) async throws {
         // Only sync if we have a valid auth token
         guard NetworkManager.shared.hasValidToken() else { return }

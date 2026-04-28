@@ -41,6 +41,30 @@ class LoginViewController: UIViewController {
         return button
     }()
     
+    private let orLabel: UILabel = {
+        let label = UILabel()
+        label.text = "OR"
+        label.font = .systemFont(ofSize: 14, weight: .medium)
+        label.textColor = .secondaryLabel
+        label.textAlignment = .center
+        return label
+    }()
+    
+    private let googleButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Sign in with Google", for: .normal)
+        button.setTitleColor(.black, for: .normal)
+        button.backgroundColor = .white
+        button.layer.borderWidth = 1
+        button.layer.borderColor = UIColor.systemGray4.cgColor
+        button.layer.cornerRadius = 8
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        button.setImage(UIImage(systemName: "g.circle.fill"), for: .normal) // Placeholder for Google Logo
+        button.tintColor = .systemRed
+        button.imageEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 10)
+        return button
+    }()
+    
     private let biometricButton: UIButton = {
         let button = UIButton(type: .system)
         let icon = BiometricManager.shared.biometricType == .faceID ? "faceid" : "touchid"
@@ -61,7 +85,7 @@ class LoginViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .systemBackground
         
-        let stackView = UIStackView(arrangedSubviews: [titleLabel, emailTextField, passwordTextField, loginButton])
+        let stackView = UIStackView(arrangedSubviews: [titleLabel, emailTextField, passwordTextField, loginButton, orLabel, googleButton])
         stackView.axis = .vertical
         stackView.spacing = 20
         
@@ -78,8 +102,12 @@ class LoginViewController: UIViewController {
             make.height.equalTo(50)
         }
         
+        googleButton.snp.makeConstraints { make in
+            make.height.equalTo(50)
+        }
+        
         biometricButton.snp.makeConstraints { make in
-            make.top.equalTo(stackView.snp.bottom).offset(20)
+            make.top.equalTo(stackView.snp.bottom).offset(30)
             make.centerX.equalToSuperview()
             make.size.equalTo(50)
         }
@@ -89,7 +117,16 @@ class LoginViewController: UIViewController {
         }
         
         loginButton.addTarget(self, action: #selector(handleLogin), for: .touchUpInside)
+        googleButton.addTarget(self, action: #selector(handleGoogleSignIn), for: .touchUpInside)
         biometricButton.addTarget(self, action: #selector(handleBiometricLogin), for: .touchUpInside)
+    }
+    
+    @objc private func handleGoogleSignIn() {
+        setLoading(true)
+        
+        // Placeholder for GIDSignIn.sharedInstance.signIn
+        // Upon success, get the idToken and call:
+        // try await AuthManager.shared.googleLogin(idToken: token)
     }
     
     private func checkBiometricPreference() {
