@@ -35,7 +35,7 @@ class MainCoordinator: Coordinator {
         
         let tabBar = MainTabBarController(coordinator: self)
         
-        UIView.transition(with: window!, duration: 0.3, options: .transitionFlipFromRight, animations: {
+        UIView.transition(with: window!, duration: 0.3, options: .transitionCrossDissolve, animations: {
             self.window?.rootViewController = tabBar
         })
     }
