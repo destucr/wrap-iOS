@@ -24,7 +24,7 @@ Status: Active (Unified Review Order & Spacing Refinement)
 
 ### 1.3 Interactive Components
 - **Interactive Stepper (`InteractiveStepper`)**: 
-    - Custom `UIView` transitioning from `[ + ADD ]` to `[ - ] [ Qty ] [ + ]`.
+    - Custom `UIView` transitioning from `[ + ]` to `[ - ] [ Qty ] [ + ]`. Now used in both Home Product Cards and Catalog Product Lists.
     - Integrated with `UIImpactFeedbackGenerator` for tactile response.
 - **Product Card (`ProductCardView`)**: 
     - Composite view utilizing `Kingfisher` for async image loading.
@@ -59,7 +59,7 @@ Status: Active (Unified Review Order & Spacing Refinement)
 ### 2.2 Discovery & Selection
 1. **Search**: User taps search bar -> Real-time filtering.
 2. **Category**: User taps category icon -> Filters feed.
-3. **Add to Cart**: User taps `[ + ADD ]` -> Stepper activates -> Haptic feedback.
+3. **Add to Cart**: User taps `[ + ]` on a product -> Stepper activates -> Haptic feedback.
 
 ### 2.3 Checkout & Fulfillment
 1. **View Cart**: User taps the **"Cart"** tab.

@@ -9,17 +9,21 @@ final class InteractiveStepper: UIView {
     
     public private(set) var value: Int = 0 {
         didSet {
-            updateUI()
-            delegate?.stepper(self, didUpdateValue: value)
+            if oldValue != value {
+                updateUI()
+            }
         }
+    }
+    
+    private func notifyDelegate() {
+        delegate?.stepper(self, didUpdateValue: value)
     }
     
     private let addButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("+ ADD", for: .normal)
+        button.setImage(UIImage(systemName: "plus"), for: .normal)
         button.backgroundColor = Brand.primary
-        button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = Brand.Typography.body(size: 14).withWeight(.bold)
+        button.tintColor = .white
         button.roundCorners(radius: 8)
         return button
     }()
@@ -100,18 +104,21 @@ final class InteractiveStepper: UIView {
     @objc private func didTapAdd() {
         value = 1
         triggerHaptic(.medium)
+        notifyDelegate()
     }
     
     @objc private func didTapMinus() {
         if value > 0 {
             value -= 1
             triggerHaptic(.light)
+            notifyDelegate()
         }
     }
     
     @objc private func didTapPlus() {
         value += 1
         triggerHaptic(.medium)
+        notifyDelegate()
     }
     
     private func updateUI() {
