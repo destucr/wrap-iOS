@@ -69,9 +69,13 @@ class MainCoordinator: Coordinator {
     }
     
     func showCheckoutPreview() {
-        let vc = CheckoutPreviewViewController()
+        let vc = ReviewOrderViewController()
         vc.coordinator = self
         currentNavigationController?.pushViewController(vc, animated: true)
+    }
+    
+    func showReviewOrder() {
+        showCheckoutPreview()
     }
     
     func showOrderSuccess(orderId: String, paymentUrl: String) {

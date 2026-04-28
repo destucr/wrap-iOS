@@ -38,6 +38,14 @@ The Wrap iOS architecture is built on a **Feature-Based MVC + Coordinator** patt
     - `ORLabel` separator.
     - `GoogleSignInButton` (Full width).
 
+### 1.5 Profile & Settings (`ProfileViewController`)
+- **Identity Header**: Top section with User's Full Name and primary Address.
+- **Grouped List**: 
+    - **Account**: `Detail Akun` (Name, Phone, Email).
+    - **Security**: `Biometric Toggle`, `PIN Settings`.
+    - **Logistics**: `Alamat Tersimpan`.
+    - **System**: `Logout`.
+
 ---
 
 ## 🔄 2. Granular User Flow (Button-by-Button)
