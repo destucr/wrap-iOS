@@ -132,9 +132,10 @@ class LoginViewController: UIViewController {
     }
     
     private func checkBiometricPreference() {
-        if BiometricManager.shared.canAuthenticate(),
+        if AuthManager.shared.isBiometricsEnabled,
+           BiometricManager.shared.canAuthenticate(),
            AuthManager.shared.getCredentials() != nil {
-            // Optional: Auto-trigger biometric login for frictionless entry
+            // Frictionless entry: Auto-trigger biometric login
             handleBiometricLogin()
         }
     }

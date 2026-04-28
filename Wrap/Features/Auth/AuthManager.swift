@@ -5,11 +5,13 @@ struct AuthResponse: Codable {
     let token: String
     let isEmailVerified: Bool
     let userId: String
+    let biometricsEnabled: Bool
     
     enum CodingKeys: String, CodingKey {
         case token
         case isEmailVerified = "is_email_verified"
         case userId = "user_id"
+        case biometricsEnabled = "biometrics_enabled"
     }
 }
 
@@ -17,8 +19,28 @@ struct UserSyncResponse: Codable {
     let message: String?
 }
 
+struct User: Codable {
+    let id: UUID
+    let email: String
+    let fullName: String
+    let biometricsEnabled: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case id, email
+        case fullName = "full_name"
+        case biometricsEnabled = "biometrics_enabled"
+    }
+}
+
 class AuthManager {
     static let shared = AuthManager()
+    
+    private let biometricsPrefKey = "com.wrap.biometricsEnabled"
+    
+    var isBiometricsEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: biometricsPrefKey) }
+        set { UserDefaults.standard.set(newValue, forKey: biometricsPrefKey) }
+    }
     
     private init() {}
     
@@ -34,6 +56,7 @@ class AuthManager {
         
         let response: AuthResponse = try await NetworkManager.shared.request(endpoint: "/auth/login", method: "POST", body: jsonData)
         NetworkManager.shared.setAuthToken(response.token)
+        self.isBiometricsEnabled = response.biometricsEnabled
         
         // Sync FCM token if available after login
         if let fcmToken = Messaging.messaging().fcmToken {
@@ -53,7 +76,8 @@ class AuthManager {
         }
         
         let jsonData = try? JSONSerialization.data(withJSONObject: body)
-        let _: UserSyncResponse = try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: jsonData)
+        let user: User = try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: jsonData)
+        self.isBiometricsEnabled = user.biometricsEnabled
     }
     
     func saveCredentials(email: String, password: String) {

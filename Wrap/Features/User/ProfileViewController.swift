@@ -72,14 +72,32 @@ class ProfileViewController: UIViewController {
     }
     
     private func fetchProfile() {
-        // Implementation would call /user/profile and set biometricSwitch.isOn
+        Task {
+            do {
+                let user: User = try await NetworkManager.shared.request(endpoint: "/user/profile")
+                biometricSwitch.isOn = user.biometricsEnabled
+                AuthManager.shared.isBiometricsEnabled = user.biometricsEnabled
+            } catch {
+                print("Failed to fetch profile: \(error)")
+                // Fallback to local preference if network fails
+                biometricSwitch.isOn = AuthManager.shared.isBiometricsEnabled
+            }
+        }
     }
     
     @objc private func handleBiometricToggle() {
         let isEnabled = biometricSwitch.isOn
+        AuthManager.shared.isBiometricsEnabled = isEnabled
         
-        // Update preference in backend
-        // Endpoint: PUT /api/v1/user/settings { "biometrics_enabled": isEnabled }
+        Task {
+            do {
+                let body = ["biometrics_enabled": isEnabled]
+                let jsonData = try JSONSerialization.data(withJSONObject: body)
+                let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/user/settings", method: "PUT", body: jsonData)
+            } catch {
+                print("Failed to update biometric preference: \(error)")
+            }
+        }
     }
     
     @objc private func handleLogout() {
