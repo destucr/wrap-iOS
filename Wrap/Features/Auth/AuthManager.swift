@@ -56,6 +56,23 @@ class AuthManager {
         let _: UserSyncResponse = try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: jsonData)
     }
     
+    func saveCredentials(email: String, password: String) {
+        let credentials = ["email": email, "password": password]
+        if let data = try? JSONEncoder().encode(credentials) {
+            KeychainHelper.shared.save(data, service: "com.wrap.auth", account: "credentials")
+        }
+    }
+    
+    func getCredentials() -> (email: String, password: String)? {
+        guard let data = KeychainHelper.shared.read(service: "com.wrap.auth", account: "credentials"),
+              let credentials = try? JSONDecoder().decode([String: String].self, from: data),
+              let email = credentials["email"],
+              let password = credentials["password"] else {
+            return nil
+        }
+        return (email, password)
+    }
+    
     func syncFCMToken(_ fcmToken: String) async throws {
         // Only sync if we have a valid auth token
         guard NetworkManager.shared.hasValidToken() else { return }

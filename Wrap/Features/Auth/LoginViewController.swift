@@ -132,15 +132,29 @@ class LoginViewController: UIViewController {
     }
     
     private func checkBiometricPreference() {
-        // Logic to check if user enabled biometrics (from Local Defaults or Keychain)
-        // If enabled, automatically trigger handleBiometricLogin()
+        if BiometricManager.shared.canAuthenticate(),
+           AuthManager.shared.getCredentials() != nil {
+            // Optional: Auto-trigger biometric login for frictionless entry
+            handleBiometricLogin()
+        }
     }
     
     @objc private func handleBiometricLogin() {
+        guard let credentials = AuthManager.shared.getCredentials() else {
+            showAlert(message: "Please login manually once to enable Biometrics.")
+            return
+        }
+        
         BiometricManager.shared.authenticate(reason: "Login to Wrap") { [weak self] success, error in
             if success {
-                // Biometric success, now retrieve credentials from Keychain and call AuthManager.shared.login
-                self?.coordinator?.showCatalog()
+                Task {
+                    do {
+                        _ = try await AuthManager.shared.login(email: credentials.email, password: credentials.password)
+                        self?.coordinator?.showCatalog()
+                    } catch {
+                        self?.showAlert(message: "Biometric login failed. Please use your password.")
+                    }
+                }
             } else if let error = error {
                 print("Biometric Authentication Failed: \(error.localizedDescription)")
             }
@@ -156,6 +170,10 @@ class LoginViewController: UIViewController {
         Task {
             do {
                 let response = try await AuthManager.shared.login(email: email, password: password)
+                
+                // Save credentials to Keychain for future Biometric Logins
+                AuthManager.shared.saveCredentials(email: email, password: password)
+                
                 setLoading(false)
                 print("Login Success! Token: \(response.token)")
                 coordinator?.showCatalog()
