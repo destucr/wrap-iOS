@@ -1,26 +1,27 @@
 # Wrap UI & UX Documentation
-Version: 1.1
-Status: Active (Refined with Zero-Friction & Trust-Building Directives)
+Version: 1.2
+Status: Active (Refined with Component IA & Granular User Flows)
 
 ## 🏛 1. Information Architecture (IA)
 
-The Wrap interface is optimized for "The 30-Second Shop"—minimizing cognitive load and maximizing fulfillment speed.
+The Wrap iOS architecture is built on a **Feature-Based MVC + Coordinator** pattern, ensuring high performance and deterministic state transitions.
 
-### 1.1 Home Dashboard (The 30-Second Shop)
-- **Delivery Pulse**: A dynamic status chip next to the user's location (e.g., `"Delivery in 12 mins"`). 
-    - *Logic*: Calculated based on store load vs. active driver count.
-- **Habit Strip**: Located directly below the search bar. A horizontal scroll of "Your Usuals" (Top 5 most frequently purchased SKUs).
-- **Lifestyle Tags**: Rapid discovery chips (e.g., `[Vegan]`, `[Breakfast]`, `[Pet Care]`).
-- **Dynamic Promo Banners**: High-impact horizontal carousel for curated deals.
+### 1.1 Home Dashboard (`HomeViewController`)
+- **Root**: `UICollectionView` using `UICollectionViewCompositionalLayout`.
+- **Sections**:
+    - **Header**: Navigation Bar containing `PulseStatusChip` (Left) and `SearchBar` (TitleView).
+    - **Section 0 (Hero)**: `HeroBannerCell` horizontal carousel (Group Paging).
+    - **Section 1 (Navigation)**: `CategoryShortcutCell` 4-column icon grid.
+    - **Section 2 (Habits)**: `ProductCardSmall` horizontal scroll of "Your Usuals".
+    - **Section 3 (Main Feed)**: `ProductCardView` 2-column vertical grid for Trending/Discovery.
 
-### 1.2 Catalog & Grid (The Zero-Click Add)
-- **Interactive Stepper**: 
-    - *Default State*: A prominent `[ + ADD ]` button.
-    - *Active State*: Transforms into `[ - 1 + ]` on first tap. No page transitions allowed for basic quantity adjustments.
-- **Scarcity & Quality Labels**:
-    - **Freshness**: `"Freshly Picked Today"` for produce/bakery.
-    - **Stock**: `"Low Stock: Only {n} left"` (Triggers at < 5 units).
-    - **Best Value**: Highlight `"Rp {price} / {unit}"` in **Wrap Emerald** for price-leader items.
+### 1.2 Interactive Components
+- **Interactive Stepper (`InteractiveStepper`)**: 
+    - A custom `UIView` that manages its own state transition from `[ + ADD ]` (UIButton) to a horizontal `UIStackView` containing `[ - ]`, `[ QuantityLabel ]`, and `[ + ]`.
+    - Integrated with `UIImpactFeedbackGenerator` for tactile response.
+- **Product Card (`ProductCardView`)**: 
+    - Composite view utilizing `Kingfisher` for async image loading.
+    - Overlay layer for `ScarcityBadge` and `TemperatureIcon`.
 
 ### 1.3 Product Detail Page (The Trust Builder)
 - **Temperature Indicator**: Critical for FMCG (e.g., `[ ❄️ Chilled ]` or `[ 🔥 Hot ]`).
@@ -29,34 +30,49 @@ The Wrap interface is optimized for "The 30-Second Shop"—minimizing cognitive 
     - *Options*: `[ Call me ]`, `[ Replace with similar ]`, `[ Refund ]`.
 - **Direct Cart Toggle**: A sticky footer quantity selector that remains visible regardless of scroll depth.
 
-### 1.4 Identity & Access (Frictionless Entry)
-- **Email/Password Login**: Primary method with rounded text fields and clear error states.
-- **Biometric Integration**: 
-    - *Positioning*: Located on the **right side** of the primary "Login" button for ergonomic, high-speed access.
-    - *Adaptive Icons*: Automatically switches between FaceID and TouchID glyphs based on device capability.
-- **Social Auth (Google)**: 
-    - Branded white button with "G" logo and grey border.
-    - Located below an "OR" separator to distinguish from manual entry.
-- **Privacy Compliance**: Custom usage descriptions provided for FaceID and Location permissions to build user trust and ensure App Store compliance.
+### 1.4 Identity & Access (`LoginViewController`)
+- **Primary Stack**: Vertical `UIStackView` containing:
+    - `TitleLabel`
+    - `EmailTextField` & `PasswordTextField`
+    - **Login Action Group**: Horizontal `UIStackView` with `LoginButton` (80% width) and `BiometricButton` (20% width).
+    - `ORLabel` separator.
+    - `GoogleSignInButton` (Full width).
 
 ---
 
-## 🔄 2. User Flow
+## 🔄 2. Granular User Flow (Button-by-Button)
 
-### 2.1 The Friction-Killer (Transactional Flow)
-- **Address Micro-Details**: 
-    - Mandatory: `Floor / Unit Number`.
-    - Selector: `Drop-off Point` (`[ Hand to me ]`, `[ Leave at door ]`, `[ Lobby ]`).
-- **No-Surprise Bill Summary**:
-    - `Item Total`
-    - `Promo Discount` (Green)
-    - `Delivery Fee` (Show `$0.00` if free)
-    - **Total Amount** (Boldest text)
-    - *Note*: Packaging fees are explicitly removed to maintain brand trust.
+### 2.1 Authentication & Entry
+1. **App Launch**: `MainCoordinator` checks `Keychain` for token.
+2. **Biometric Path**:
+    - App detects stored credentials -> Automatically triggers `FaceID/TouchID` prompt.
+    - User performs biometric scan -> Success -> `MainCoordinator` executes `showMainTab()`.
+3. **Manual Path**:
+    - User types Email/Password -> Presses `[ Login ]` button.
+    - Backend returns 200 -> `AuthManager` saves credentials to `Keychain` -> `showMainTab()`.
+4. **Social Path**:
+    - User presses `[ Sign in with Google ]` -> System shows OAuth Sheet.
+    - User confirms -> `AuthManager` calls `/user/sync` -> `showMainTab()`.
 
-### 2.2 The Anxiety Reducer (Post-Purchase)
-- **Warehouse Milestones**: Status updates that increase perceived value (e.g., `"Rider is checking item quality..."`).
-- **Live Chat Trigger**: Direct shortcut to the rider with pre-filled essential messages (e.g., `"The gate is open"`, `"Call me on arrival"`).
+### 2.2 Discovery & Selection
+1. **Search**: User taps `[ Search Indomie... ]` in Navigation Bar -> Keyboard opens -> Results filter in real-time.
+2. **Category**: User taps `[ Fresh ]` icon in icon grid -> Filters main feed to show only fresh produce.
+3. **Add to Cart**: 
+    - User taps `[ + ADD ]` on a product card.
+    - Button transforms into `[ - 1 + ]` stepper -> `Medium` haptic pulse.
+    - User taps `[ + ]` to increase quantity -> `Light` haptic pulse.
+
+### 2.3 Checkout & Fulfillment
+1. **View Cart**: User taps the `[ Shopping Cart Icon ]` in the bottom tab bar.
+2. **Preview**: User taps `[ Checkout ]` button in the cart summary.
+3. **Address Update**: User taps `[ Change Address ]` -> Updates `Floor/Unit` and `Drop-off Point`.
+4. **Confirmation**: User taps `[ Place Order ]` -> `Success` haptic pulse -> App opens Xendit Payment Sheet.
+5. **Success**: User returns to app -> `MainCoordinator` shows `OrderSuccessViewController`.
+
+### 2.4 Post-Purchase Tracking
+1. **Track**: User taps `[ Track Order ]` button on the success screen.
+2. **Live Map**: `OrderTrackingViewController` opens -> `MKMapView` shows driver icon moving in real-time.
+3. **Contact**: User taps `[ Message Rider ]` -> Opens pre-filled chat sheet.
 
 ---
 
@@ -69,6 +85,11 @@ The Wrap interface is optimized for "The 30-Second Shop"—minimizing cognitive 
 | **Paid** | `PREPARING` | Warehouse/Dark Store fulfillment. |
 | **In Transit** | `ON THE WAY` | Live Map tracking active. |
 | **Delivered** | `ARRIVED` | Haptic success trigger. |
+
+### 3.2 Dynamic UI Strings
+- **Urgency**: `"Only {n} left"` (Shown when stock < threshold).
+- **Value**: `"Rp {price} / {unit}"` (e.g., Rp 12 / gram).
+- **Feedback**: `"Email unverified"`, `"Connecting to driver..."`.
 
 ---
 
