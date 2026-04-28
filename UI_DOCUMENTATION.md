@@ -29,6 +29,16 @@ The Wrap interface is optimized for "The 30-Second Shop"—minimizing cognitive 
     - *Options*: `[ Call me ]`, `[ Replace with similar ]`, `[ Refund ]`.
 - **Direct Cart Toggle**: A sticky footer quantity selector that remains visible regardless of scroll depth.
 
+### 1.4 Identity & Access (Frictionless Entry)
+- **Email/Password Login**: Primary method with rounded text fields and clear error states.
+- **Biometric Integration**: 
+    - *Positioning*: Located on the **right side** of the primary "Login" button for ergonomic, high-speed access.
+    - *Adaptive Icons*: Automatically switches between FaceID and TouchID glyphs based on device capability.
+- **Social Auth (Google)**: 
+    - Branded white button with "G" logo and grey border.
+    - Located below an "OR" separator to distinguish from manual entry.
+- **Privacy Compliance**: Custom usage descriptions provided for FaceID and Location permissions to build user trust and ensure App Store compliance.
+
 ---
 
 ## 🔄 2. User Flow

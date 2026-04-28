@@ -34,7 +34,9 @@ We use **SwiftData** for order-grade local persistence.
 - **Haptics:** `UIImpactFeedbackGenerator` is used for non-disruptive feedback (e.g., adding to cart).
 
 ## 📡 Networking
-... (existing networking)
+- **NetworkManager**: Centralized URLSession wrapper with automatic Keychain integration for auth tokens.
+- **Type Safety**: All responses are mapped to concrete `Codable` structs (e.g., `UserSyncResponse`) to avoid `Any` type-erasure issues.
+- **Session Management**: Explicit `logout()` triggers local cache clearing (Keychain + Memory) and notifies the backend to invalidate push tokens.
 
 ## 🔐 Environment & Secrets
 We handle sensitive configurations in three layers:
@@ -43,10 +45,14 @@ We handle sensitive configurations in three layers:
 2. **App Configuration (`Config.plist`):** A custom property list containing public identifiers (API URLs, Public Keys).
    - This file is ignored by Git (`.gitignore`) to prevent credential leakage.
    - A template `Config.plist` should be maintained locally.
-3. **Environment Wrapper (`Core/Config/Environment.swift`):** 
-   - Dynamically reads values from `Config.plist`.
-   - Prevents hardcoding of keys in Swift code.
-   - Provides a type-safe interface for the rest of the app.
+3. **Privacy Descriptions (`Info.plist`):** 
+   - `NSFaceIDUsageDescription`: Required for biometric login.
+   - `NSLocationWhenInUseUsageDescription`: Required for delivery logistics.
+
+## 🛡️ Security & Identity
+- **BiometricManager**: Singleton wrapper for `LocalAuthentication`. Supports FaceID and TouchID with fallback to manual credentials.
+- **OAuth Sync**: Google Sign-In utilizes "Silent Registration" via the `/user/sync` endpoint, ensuring OAuth users are automatically provisioned in the Postgres database.
+- **Strict Auth Guard**: `MainCoordinator` enforces a mandatory token check before showing the main interface, preventing unauthorized view access.
 
 ## 🛠 Adding a New Feature
 1. Create a new folder under `Features/Name`.
