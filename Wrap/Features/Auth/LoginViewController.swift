@@ -85,12 +85,16 @@ class LoginViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .systemBackground
         
-        let stackView = UIStackView(arrangedSubviews: [titleLabel, emailTextField, passwordTextField, loginButton, orLabel, googleButton])
+        let loginStack = UIStackView(arrangedSubviews: [loginButton, biometricButton])
+        loginStack.axis = .horizontal
+        loginStack.spacing = 12
+        loginStack.alignment = .fill
+        
+        let stackView = UIStackView(arrangedSubviews: [titleLabel, emailTextField, passwordTextField, loginStack, orLabel, googleButton])
         stackView.axis = .vertical
         stackView.spacing = 20
         
         view.addSubview(stackView)
-        view.addSubview(biometricButton)
         view.addSubview(activityIndicator)
         
         stackView.snp.makeConstraints { make in
@@ -102,14 +106,12 @@ class LoginViewController: UIViewController {
             make.height.equalTo(50)
         }
         
-        googleButton.snp.makeConstraints { make in
-            make.height.equalTo(50)
+        biometricButton.snp.makeConstraints { make in
+            make.width.equalTo(50)
         }
         
-        biometricButton.snp.makeConstraints { make in
-            make.top.equalTo(stackView.snp.bottom).offset(30)
-            make.centerX.equalToSuperview()
-            make.size.equalTo(50)
+        googleButton.snp.makeConstraints { make in
+            make.height.equalTo(50)
         }
         
         activityIndicator.snp.makeConstraints { make in
