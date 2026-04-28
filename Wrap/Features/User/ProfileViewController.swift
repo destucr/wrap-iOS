@@ -20,20 +20,46 @@ class ProfileViewController: UIViewController {
         return button
     }()
     
+    private let biometricLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Enable Biometric Login"
+        label.font = .systemFont(ofSize: 18)
+        return label
+    }()
+    
+    private let biometricSwitch: UISwitch = {
+        let sw = UISwitch()
+        sw.onTintColor = Brand.primary
+        return sw
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        fetchProfile()
     }
     
     private func setupUI() {
         view.backgroundColor = .systemBackground
         
         view.addSubview(titleLabel)
+        view.addSubview(biometricLabel)
+        view.addSubview(biometricSwitch)
         view.addSubview(logoutButton)
         
         titleLabel.snp.makeConstraints { make in
             make.top.equalTo(view.safeAreaLayoutGuide).offset(40)
-            make.centerX.equalToSuperview()
+            make.leading.equalToSuperview().offset(20)
+        }
+        
+        biometricLabel.snp.makeConstraints { make in
+            make.top.equalTo(titleLabel.bottomAnchor).offset(40)
+            make.leading.equalToSuperview().offset(20)
+        }
+        
+        biometricSwitch.snp.makeConstraints { make in
+            make.centerY.equalTo(biometricLabel)
+            make.trailing.equalToSuperview().offset(-20)
         }
         
         logoutButton.snp.makeConstraints { make in
@@ -42,6 +68,18 @@ class ProfileViewController: UIViewController {
         }
         
         logoutButton.addTarget(self, action: #selector(handleLogout), for: .touchUpInside)
+        biometricSwitch.addTarget(self, action: #selector(handleBiometricToggle), for: .valueChanged)
+    }
+    
+    private func fetchProfile() {
+        // Implementation would call /user/profile and set biometricSwitch.isOn
+    }
+    
+    @objc private func handleBiometricToggle() {
+        let isEnabled = biometricSwitch.isOn
+        
+        // Update preference in backend
+        // Endpoint: PUT /api/v1/user/settings { "biometrics_enabled": isEnabled }
     }
     
     @objc private func handleLogout() {

@@ -41,11 +41,21 @@ class LoginViewController: UIViewController {
         return button
     }()
     
+    private let biometricButton: UIButton = {
+        let button = UIButton(type: .system)
+        let icon = BiometricManager.shared.biometricType == .faceID ? "faceid" : "touchid"
+        button.setImage(UIImage(systemName: icon), for: .normal)
+        button.tintColor = .systemBlue
+        button.isHidden = !BiometricManager.shared.canAuthenticate()
+        return button
+    }()
+    
     private let activityIndicator = UIActivityIndicatorView(style: .medium)
 
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        checkBiometricPreference()
     }
     
     private func setupUI() {
@@ -56,9 +66,9 @@ class LoginViewController: UIViewController {
         stackView.spacing = 20
         
         view.addSubview(stackView)
+        view.addSubview(biometricButton)
         view.addSubview(activityIndicator)
         
-        // MARK: - SnapKit Layout (Readable & Concise)
         stackView.snp.makeConstraints { make in
             make.center.equalToSuperview()
             make.leading.trailing.equalToSuperview().inset(40)
@@ -68,11 +78,34 @@ class LoginViewController: UIViewController {
             make.height.equalTo(50)
         }
         
+        biometricButton.snp.makeConstraints { make in
+            make.top.equalTo(stackView.bottomAnchor).offset(20)
+            make.centerX.equalToSuperview()
+            make.size.equalTo(50)
+        }
+        
         activityIndicator.snp.makeConstraints { make in
             make.center.equalTo(loginButton)
         }
         
         loginButton.addTarget(self, action: #selector(handleLogin), for: .touchUpInside)
+        biometricButton.addTarget(self, action: #selector(handleBiometricLogin), for: .touchUpInside)
+    }
+    
+    private func checkBiometricPreference() {
+        // Logic to check if user enabled biometrics (from Local Defaults or Keychain)
+        // If enabled, automatically trigger handleBiometricLogin()
+    }
+    
+    @objc private func handleBiometricLogin() {
+        BiometricManager.shared.authenticate(reason: "Login to Wrap") { [weak self] success, error in
+            if success {
+                // Biometric success, now retrieve credentials from Keychain and call AuthManager.shared.login
+                self?.coordinator?.showCatalog()
+            } else if let error = error {
+                print("Biometric Authentication Failed: \(error.localizedDescription)")
+            }
+        }
     }
     
     @objc private func handleLogin() {
