@@ -1,14 +1,18 @@
 import UIKit
 import SnapKit
+import Kingfisher
 
 final class ProductDetailViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
     private let productId: UUID
+    private var product: Product?
     
     private let scrollView = UIScrollView()
     private let contentView = UIView()
+    private let activityIndicator = UIActivityIndicatorView(style: .large)
     
+    // 1. Imagery
     private let imageView: UIImageView = {
         let iv = UIImageView()
         iv.contentMode = .scaleAspectFill
@@ -17,94 +21,80 @@ final class ProductDetailViewController: UIViewController {
         return iv
     }()
     
-    private let nameLabel: UILabel = {
-        let label = UILabel()
-        label.font = Brand.Typography.header(size: 24)
-        label.numberOfLines = 0
-        return label
-    }()
-    
+    // 2. Price Block
     private let priceLabel: UILabel = {
         let label = UILabel()
-        label.font = Brand.Typography.subheader(size: 20)
+        label.font = Brand.Typography.header(size: 28)
         label.textColor = Brand.primary
         return label
     }()
     
-    private let weightLabel: UILabel = {
+    // 3. Name
+    private let nameLabel: UILabel = {
         let label = UILabel()
-        label.font = Brand.Typography.body(size: 16)
-        label.textColor = .secondaryLabel
+        label.font = Brand.Typography.subheader(size: 20)
+        label.numberOfLines = 0
         return label
     }()
     
-    private let stockLabel: UILabel = {
-        let label = UILabel()
-        label.font = Brand.Typography.body(size: 14).withWeight(.bold)
-        label.textColor = Brand.accent
-        return label
+    // 4. Metadata Row
+    private let metadataStack: UIStackView = {
+        let stack = UIStackView()
+        stack.axis = .horizontal
+        stack.spacing = 16
+        stack.alignment = .center
+        return stack
     }()
     
+    private func createMetadataItem(label: String, value: String) -> UIView {
+        let l = UILabel()
+        l.text = "\(label): "
+        l.font = Brand.Typography.body(size: 14)
+        l.textColor = .secondaryLabel
+        
+        let v = UILabel()
+        v.text = value
+        v.font = Brand.Typography.body(size: 14).withWeight(.bold)
+        
+        let stack = UIStackView(arrangedSubviews: [l, v])
+        stack.axis = .horizontal
+        return stack
+    }
+    
+    // 5. Description
     private let descriptionHeader: UILabel = {
         let label = UILabel()
-        label.text = "Description"
-        label.font = Brand.Typography.subheader(size: 18)
+        label.text = "Deskripsi Produk"
+        label.font = Brand.Typography.subheader(size: 16)
         return label
     }()
     
     private let descriptionLabel: UILabel = {
         let label = UILabel()
-        label.font = Brand.Typography.body(size: 16)
+        label.font = Brand.Typography.body(size: 14)
         label.numberOfLines = 0
         label.textColor = .label
         return label
     }()
     
+    // 7. Sticky Bottom Bar
+    private let bottomBar = UIView()
     private let stepper = InteractiveStepper()
     
-    private let addToCartButton: UIButton = {
+    private let buyNowButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("Add to Cart", for: .normal)
+        button.setTitle("Beli Sekarang", for: .normal)
         button.backgroundColor = Brand.primary
         button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = Brand.Typography.subheader(size: 18)
+        button.titleLabel?.font = Brand.Typography.subheader(size: 16)
         button.roundCorners(radius: 12)
-        return button
-    }()
-    
-    private let recommendationTitle: UILabel = {
-        let label = UILabel()
-        label.text = "Recommended for You"
-        label.font = Brand.Typography.subheader(size: 18)
-        return label
-    }()
-    
-    private let recommendationCollectionView: UICollectionView = {
-        let layout = UICollectionViewFlowLayout()
-        layout.scrollDirection = .horizontal
-        layout.itemSize = CGSize(width: 140, height: 200)
-        layout.minimumInteritemSpacing = 12
-        let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        cv.backgroundColor = .clear
-        cv.showsHorizontalScrollIndicator = false
-        cv.register(ProductCardView.self, forCellWithReuseIdentifier: ProductCardView.identifier)
-        return cv
-    }()
-    
-    private let viewCartButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("View Cart", for: .normal)
-        button.backgroundColor = .black
-        button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = Brand.Typography.body(size: 14).withWeight(.bold)
-        button.roundCorners(radius: 20)
-        button.isHidden = true
         return button
     }()
     
     init(productId: UUID) {
         self.productId = productId
         super.init(nibName: nil, bundle: nil)
+        self.hidesBottomBarWhenPushed = true
     }
     
     required init?(coder: NSCoder) {
@@ -114,23 +104,66 @@ final class ProductDetailViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        loadData()
+        fetchProductDetails()
+        setupObservers()
+    }
+    
+    private func setupObservers() {
+        NotificationCenter.default.addObserver(self, selector: #selector(cartDidUpdate), name: .cartUpdated, object: nil)
+    }
+    
+    @objc private func cartDidUpdate() {
+        updateStepperValue()
+    }
+    
+    private func updateStepperValue() {
+        guard let firstVariant = product?.variants?.first else { return }
+        let currentQty = CartManager.shared.quantity(for: firstVariant.id)
+        stepper.setValue(currentQty)
     }
     
     private func setupUI() {
         view.backgroundColor = .systemBackground
-        title = "Product Details"
         
         view.addSubview(scrollView)
-        view.addSubview(viewCartButton)
+        view.addSubview(bottomBar)
+        view.addSubview(activityIndicator)
         scrollView.addSubview(contentView)
         
-        [imageView, nameLabel, priceLabel, weightLabel, stockLabel, 
-         descriptionHeader, descriptionLabel, stepper, addToCartButton, 
-         recommendationTitle, recommendationCollectionView].forEach { contentView.addSubview($0) }
+        [imageView, priceLabel, nameLabel, metadataStack, 
+         descriptionHeader, descriptionLabel].forEach { contentView.addSubview($0) }
         
+        // Bottom Bar Setup
+        bottomBar.backgroundColor = .systemBackground
+        bottomBar.applyShadow()
+        bottomBar.addSubview(stepper)
+        bottomBar.addSubview(buyNowButton)
+        
+        stepper.delegate = self
+        
+        bottomBar.snp.makeConstraints { make in
+            make.bottom.leading.trailing.equalToSuperview()
+            make.height.equalTo(100 + (UIApplication.shared.windows.first?.safeAreaInsets.bottom ?? 0))
+        }
+        
+        stepper.snp.makeConstraints { make in
+            make.top.equalToSuperview().offset(16)
+            make.leading.equalToSuperview().offset(20)
+            make.width.equalTo(120)
+            make.height.equalTo(44)
+        }
+        
+        buyNowButton.snp.makeConstraints { make in
+            make.centerY.equalTo(stepper)
+            make.leading.equalTo(stepper.snp.trailing).offset(12)
+            make.trailing.equalToSuperview().offset(-20)
+            make.height.equalTo(44)
+        }
+        
+        // Scroll & Content
         scrollView.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
+            make.top.leading.trailing.equalToSuperview()
+            make.bottom.equalTo(bottomBar.snp.top)
         }
         
         contentView.snp.makeConstraints { make in
@@ -138,93 +171,121 @@ final class ProductDetailViewController: UIViewController {
             make.width.equalToSuperview()
         }
         
-        imageView.snp.makeConstraints { make in
-            make.top.leading.trailing.equalToSuperview()
-            make.height.equalTo(300)
+        activityIndicator.snp.makeConstraints { make in
+            make.center.equalToSuperview()
         }
         
-        nameLabel.snp.makeConstraints { make in
-            make.top.equalTo(imageView.bottomAnchor).offset(20)
-            make.leading.trailing.equalToSuperview().inset(20)
+        imageView.snp.makeConstraints { make in
+            make.top.leading.trailing.equalToSuperview()
+            make.height.equalTo(imageView.snp.width)
         }
         
         priceLabel.snp.makeConstraints { make in
-            make.top.equalTo(nameLabel.bottomAnchor).offset(8)
-            make.leading.equalToSuperview().inset(20)
+            make.top.equalTo(imageView.snp.bottom).offset(20)
+            make.leading.equalToSuperview().offset(20)
         }
         
-        weightLabel.snp.makeConstraints { make in
-            make.centerY.equalTo(priceLabel)
-            make.trailing.equalToSuperview().inset(20)
+        nameLabel.snp.makeConstraints { make in
+            make.top.equalTo(priceLabel.snp.bottom).offset(8)
+            make.leading.trailing.equalToSuperview().inset(20)
         }
         
-        stockLabel.snp.makeConstraints { make in
-            make.top.equalTo(priceLabel.bottomAnchor).offset(8)
-            make.leading.equalToSuperview().inset(20)
-        }
-        
-        stepper.snp.makeConstraints { make in
-            make.top.equalTo(stockLabel.bottomAnchor).offset(20)
-            make.leading.equalToSuperview().inset(20)
-            make.width.equalTo(120)
-            make.height.equalTo(40)
-        }
-        
-        addToCartButton.snp.makeConstraints { make in
-            make.centerY.equalTo(stepper)
-            make.leading.equalTo(stepper.snp.trailing).offset(12)
-            make.trailing.equalToSuperview().inset(20)
-            make.height.equalTo(44)
+        metadataStack.snp.makeConstraints { make in
+            make.top.equalTo(nameLabel.snp.bottom).offset(12)
+            make.leading.equalToSuperview().offset(20)
+            make.bottom.equalToSuperview().offset(-40) // End of content
         }
         
         descriptionHeader.snp.makeConstraints { make in
-            make.top.equalTo(stepper.bottomAnchor).offset(30)
-            make.leading.equalToSuperview().inset(20)
+            make.top.equalTo(metadataStack.snp.bottom).offset(24)
+            make.leading.equalToSuperview().offset(20)
         }
         
         descriptionLabel.snp.makeConstraints { make in
-            make.top.equalTo(descriptionHeader.bottomAnchor).offset(8)
+            make.top.equalTo(descriptionHeader.snp.bottom).offset(8)
             make.leading.trailing.equalToSuperview().inset(20)
-        }
-        
-        recommendationTitle.snp.makeConstraints { make in
-            make.top.equalTo(descriptionLabel.bottomAnchor).offset(40)
-            make.leading.equalToSuperview().inset(20)
-        }
-        
-        recommendationCollectionView.snp.makeConstraints { make in
-            make.top.equalTo(recommendationTitle.bottomAnchor).offset(12)
-            make.leading.trailing.equalToSuperview().inset(20)
-            make.height.equalTo(210)
             make.bottom.equalToSuperview().offset(-40)
         }
         
-        viewCartButton.snp.makeConstraints { make in
-            make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-20)
-            make.centerX.equalToSuperview()
-            make.width.equalTo(120)
-            make.height.equalTo(40)
+        // Constraints update: move description bottom to contentView bottom
+        descriptionLabel.snp.remakeConstraints { make in
+            make.top.equalTo(descriptionHeader.snp.bottom).offset(8)
+            make.leading.trailing.equalToSuperview().inset(20)
+            make.bottom.equalToSuperview().offset(-40)
         }
         
-        addToCartButton.addTarget(self, action: #selector(didTapAddToCart), for: .touchUpInside)
-        viewCartButton.addTarget(self, action: #selector(didTapViewCart), for: .touchUpInside)
+        buyNowButton.addTarget(self, action: #selector(didTapBuyNow), for: .touchUpInside)
     }
     
-    private func loadData() {
-        // Simulated data for demo
-        nameLabel.text = "Premium Indomie Goreng"
-        priceLabel.text = "Rp 3.500"
-        weightLabel.text = "85g"
-        stockLabel.text = "Stock: 42 left"
-        descriptionLabel.text = "Indomie Mi Goreng is an instant noodles product line made under the Indomie brand by the Indofood company. It is a type of Mi goreng instant noodle. Indomie Mi Goreng is the most popular Indomie noodle flavor."
+    private func fetchProductDetails() {
+        activityIndicator.startAnimating()
+        Task {
+            do {
+                let fetchedProduct: Product = try await NetworkManager.shared.request(endpoint: "/catalog/detail/\(productId.uuidString.lowercased())")
+                self.product = fetchedProduct
+                self.configureUI(with: fetchedProduct)
+                activityIndicator.stopAnimating()
+            } catch {
+                activityIndicator.stopAnimating()
+            }
+        }
     }
     
-    @objc private func didTapAddToCart() {
-        viewCartButton.isHidden = false
-        // Logic to add item to CartManager
+    private func configureUI(with product: Product) {
+        nameLabel.text = product.name
+        priceLabel.text = "Rp \(Int(product.basePrice))"
+        descriptionLabel.text = product.description ?? "Tidak ada deskripsi."
+        
+        if let imageUrlString = product.images?.first, let url = URL(string: imageUrlString) {
+            imageView.kf.setImage(with: url)
+        }
+        
+        metadataStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        let weight = product.weightLabel ?? product.unitOfMeasure ?? "-"
+        metadataStack.addArrangedSubview(createMetadataItem(label: "Berat", value: weight))
+        
+        if let firstVariant = product.variants?.first {
+            metadataStack.addArrangedSubview(createMetadataItem(label: "Stok", value: "\(firstVariant.qtyOnHand)"))
+            updateStepperValue()
+        }
+        
+        if let temp = product.temperatureControl, temp != "ambient" {
+            metadataStack.addArrangedSubview(createMetadataItem(label: "Suhu", value: temp.capitalized))
+        }
     }
     
-    @objc private func didTapViewCart() {
+    @objc private func didTapBuyNow() {
+        guard let product = product, let firstVariant = product.variants?.first else { return }
+        if CartManager.shared.quantity(for: firstVariant.id) == 0 {
+            let price = firstVariant.priceOverride ?? product.basePrice
+            CartManager.shared.add(variantId: firstVariant.id, name: product.name, price: price, quantity: 1)
+        }
         coordinator?.showReviewOrder()
+    }
+    
+    private func triggerHaptic(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
+        let generator = UIImpactFeedbackGenerator(style: style)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+}
+
+extension ProductDetailViewController: InteractiveStepperDelegate {
+    func stepper(_ stepper: InteractiveStepper, didUpdateValue value: Int) {
+        guard let product = product, let firstVariant = product.variants?.first else { return }
+        let price = firstVariant.priceOverride ?? product.basePrice
+        
+        // Sync with CartManager
+        CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: value)
+        
+        // If it's a new item (was 0), we need to ensure it has name and price for first-time creation
+        // But CartManager.setQuantity only works if item exists. 
+        // Let's use a hybrid approach or fix setQuantity.
+        
+        if value > 0 && CartManager.shared.items.first(where: { $0.variantId == firstVariant.id }) == nil {
+             CartManager.shared.add(variantId: firstVariant.id, name: product.name, price: price, quantity: value)
+        } else {
+             CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: value)
+        }
     }
 }

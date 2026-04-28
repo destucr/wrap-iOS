@@ -7,7 +7,7 @@ protocol InteractiveStepperDelegate: AnyObject {
 final class InteractiveStepper: UIView {
     weak var delegate: InteractiveStepperDelegate?
     
-    private var value: Int = 0 {
+    public private(set) var value: Int = 0 {
         didSet {
             updateUI()
             delegate?.stepper(self, didUpdateValue: value)

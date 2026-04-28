@@ -1,124 +1,293 @@
 import UIKit
+import Kingfisher
+import SnapKit
 
 final class HomeViewController: UIViewController {
     
-    private enum Section: Int, CaseIterable {
+    private enum SectionType: String {
         case banners
         case categories
-        case habits
-        case trending
+        case standard
+        case flash_sale
+        case personalized
     }
+    
+    private var feed: HomeFeedResponse?
+    private var user: User?
+    
+    private let headerView = HomeHeaderView()
     
     private lazy var collectionView: UICollectionView = {
         let layout = createLayout()
         let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
         cv.backgroundColor = .systemBackground
         cv.register(ProductCardView.self, forCellWithReuseIdentifier: ProductCardView.identifier)
-        cv.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "BannerCell")
-        cv.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "CategoryCell")
+        cv.register(BannerCell.self, forCellWithReuseIdentifier: BannerCell.identifier)
+        cv.register(CategoryCell.self, forCellWithReuseIdentifier: CategoryCell.identifier)
+        cv.register(SectionHeaderView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: SectionHeaderView.identifier)
         return cv
     }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        fetchData()
     }
     
     private func setupUI() {
+        view.backgroundColor = .systemBackground
+        view.addSubview(headerView)
         view.addSubview(collectionView)
-        collectionView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            collectionView.topAnchor.constraint(equalTo: view.topAnchor),
-            collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
+        
+        headerView.snp.makeConstraints { make in
+            make.top.equalTo(view.safeAreaLayoutGuide)
+            make.leading.trailing.equalToSuperview()
+        }
+        
+        collectionView.snp.makeConstraints { make in
+            make.top.equalTo(headerView.snp.bottom)
+            make.leading.trailing.bottom.equalToSuperview()
+        }
         
         collectionView.dataSource = self
+        collectionView.delegate = self
         
-        // Navigation Pulse & Search Bar
-        setupNavigationBar()
+        navigationController?.setNavigationBarHidden(true, animated: false)
     }
     
-    private func setupNavigationBar() {
-        let searchBar = UISearchBar()
-        searchBar.placeholder = "Search Indomie, Eggs, or Milk..."
-        navigationItem.titleView = searchBar
-        
-        // Pulse Status Chip
-        let pulseLabel = UILabel()
-        pulseLabel.text = "⚡️ Delivery in 12 mins"
-        pulseLabel.font = Brand.Typography.body(size: 12).withWeight(.bold)
-        pulseLabel.textColor = Brand.primary
-        navigationItem.leftBarButtonItem = UIBarButtonItem(customView: pulseLabel)
+    private func fetchData() {
+        Task {
+            do {
+                async let feedRequest: HomeFeedResponse = NetworkManager.shared.request(endpoint: "/catalog/home")
+                async let profileRequest: User = NetworkManager.shared.request(endpoint: "/user/profile")
+                
+                let (fetchedFeed, fetchedUser) = try await (feedRequest, profileRequest)
+                
+                self.feed = fetchedFeed
+                self.user = fetchedUser
+                
+                headerView.configure(with: fetchedUser)
+                self.collectionView.reloadData()
+            } catch {
+                print("Failed to fetch home data: \(error)")
+            }
+        }
     }
     
     private func createLayout() -> UICollectionViewLayout {
-        return UICollectionViewCompositionalLayout { (sectionIndex, _) -> NSCollectionLayoutSection? in
-            guard let section = Section(rawValue: sectionIndex) else { return nil }
+        return UICollectionViewCompositionalLayout { [weak self] (sectionIndex, _) -> NSCollectionLayoutSection? in
+            guard let self = self, let feed = self.feed else { return nil }
             
-            switch section {
-            case .banners:
+            if sectionIndex == 0 { // Banners
                 let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .fractionalHeight(1)))
                 let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.9), heightDimension: .absolute(160)), subitems: [item])
                 let section = NSCollectionLayoutSection(group: group)
                 section.orthogonalScrollingBehavior = .groupPagingCentered
                 section.contentInsets = NSDirectionalEdgeInsets(top: 16, leading: 0, bottom: 16, trailing: 0)
                 return section
-                
-            case .categories:
+            } else if sectionIndex == 1 { // Categories
                 let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.25), heightDimension: .absolute(100)))
                 let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(100)), subitems: [item])
                 let section = NSCollectionLayoutSection(group: group)
                 section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 16, trailing: 16)
                 return section
+            } else { // Dynamic Product Sections
+                let feedSection = feed.sections[sectionIndex - 2]
                 
-            case .habits:
-                let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .fractionalHeight(1)))
-                let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .absolute(120), heightDimension: .absolute(180)), subitems: [item])
-                let section = NSCollectionLayoutSection(group: group)
-                section.orthogonalScrollingBehavior = .continuous
-                section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 24, trailing: 16)
-                return section
-                
-            case .trending:
-                let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.5), heightDimension: .estimated(240)))
-                item.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 4, bottom: 16, trailing: 4)
-                let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .estimated(240)), subitems: [item])
-                let section = NSCollectionLayoutSection(group: group)
-                section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 12, bottom: 16, trailing: 12)
-                return section
+                if feedSection.type == "personalized" {
+                    // Horizontal Scroll for "Favorit Kamu"
+                    let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .fractionalHeight(1)))
+                    let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .absolute(160), heightDimension: .absolute(240)), subitems: [item])
+                    let section = NSCollectionLayoutSection(group: group)
+                    section.orthogonalScrollingBehavior = .continuous
+                    section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 24, trailing: 16)
+                    
+                    let headerSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(44))
+                    let header = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: headerSize, elementKind: UICollectionView.elementKindSectionHeader, alignment: .top)
+                    section.boundarySupplementaryItems = [header]
+                    return section
+                } else {
+                    // Vertical 2-column Grid for others
+                    let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.5), heightDimension: .estimated(240)))
+                    item.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 4, bottom: 16, trailing: 4)
+                    let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .estimated(240)), subitems: [item])
+                    let section = NSCollectionLayoutSection(group: group)
+                    section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 12, bottom: 16, trailing: 12)
+                    
+                    let headerSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(44))
+                    let header = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: headerSize, elementKind: UICollectionView.elementKindSectionHeader, alignment: .top)
+                    section.boundarySupplementaryItems = [header]
+                    
+                    return section
+                }
             }
         }
     }
 }
 
-extension HomeViewController: UICollectionViewDataSource {
+extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelegate {
     func numberOfSections(in collectionView: UICollectionView) -> Int {
-        return Section.allCases.count
+        guard let feed = feed else { return 0 }
+        return 2 + feed.sections.count
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        switch Section(rawValue: section) {
-        case .banners: return 3
-        case .categories: return 8
-        case .habits: return 5
-        case .trending: return 10
-        default: return 0
-        }
+        guard let feed = feed else { return 0 }
+        if section == 0 { return feed.banners.count }
+        if section == 1 { return feed.categories.count }
+        return feed.sections[section - 2].items.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        switch Section(rawValue: indexPath.section) {
-        case .trending, .habits:
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCardView.identifier, for: indexPath) as! ProductCardView
-            cell.configure(name: "Premium Item \(indexPath.item)", price: 25000, unit: "500g", stock: indexPath.item < 2 ? 3 : 10)
+        guard let feed = feed else { return UICollectionViewCell() }
+        
+        if indexPath.section == 0 {
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
+            cell.configure(with: feed.banners[indexPath.item])
             return cell
-        default:
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "CategoryCell", for: indexPath)
-            cell.backgroundColor = Brand.secondary
-            cell.roundCorners(radius: 12)
+        } else if indexPath.section == 1 {
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
+            cell.configure(with: feed.categories[indexPath.item])
+            return cell
+        } else {
+            let sectionData = feed.sections[indexPath.section - 2]
+            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCardView.identifier, for: indexPath) as! ProductCardView
+            cell.configure(with: sectionData.items[indexPath.item])
             return cell
         }
     }
+    
+    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
+        if kind == UICollectionView.elementKindSectionHeader {
+            let header = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: SectionHeaderView.identifier, for: indexPath) as! SectionHeaderView
+            if indexPath.section >= 2 {
+                header.titleLabel.text = feed?.sections[indexPath.section - 2].title
+            }
+            return header
+        }
+        return UICollectionReusableView()
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        if indexPath.section >= 2 {
+            let product = feed!.sections[indexPath.section - 2].items[indexPath.item]
+            coordinator?.showProductDetail(productId: product.id)
+        }
+    }
+}
+
+// MARK: - Custom Views (Header, Cells, etc.)
+// (Rest of the supporting cells remain as defined in previous turns)
+
+final class HomeHeaderView: UIView {
+    private let nameLabel: UILabel = {
+        let label = UILabel()
+        label.font = Brand.Typography.subheader(size: 14)
+        label.textColor = .secondaryLabel
+        return label
+    }()
+    
+    private let addressLabel: UILabel = {
+        let label = UILabel()
+        label.font = Brand.Typography.subheader(size: 16)
+        label.textColor = .black
+        label.numberOfLines = 1
+        return label
+    }()
+    
+    private let searchBar: UISearchBar = {
+        let sb = UISearchBar()
+        sb.placeholder = "Search Indomie, Eggs, or Milk..."
+        sb.searchBarStyle = .minimal
+        return sb
+    }()
+    
+    init() {
+        super.init(frame: .zero)
+        setupUI()
+    }
+    
+    required init?(coder: NSCoder) { fatalError() }
+    
+    private func setupUI() {
+        backgroundColor = .systemBackground
+        addSubview(nameLabel)
+        addSubview(addressLabel)
+        addSubview(searchBar)
+        
+        nameLabel.snp.makeConstraints { make in
+            make.top.equalToSuperview().offset(8)
+            make.leading.equalToSuperview().offset(20)
+        }
+        
+        addressLabel.snp.makeConstraints { make in
+            make.top.equalTo(nameLabel.snp.bottom).offset(2)
+            make.leading.equalToSuperview().offset(20)
+            make.trailing.equalToSuperview().offset(-20)
+        }
+        
+        searchBar.snp.makeConstraints { make in
+            make.top.equalTo(addressLabel.snp.bottom).offset(8)
+            make.leading.trailing.equalToSuperview().inset(12)
+            make.bottom.equalToSuperview().offset(-8)
+        }
+    }
+    
+    func configure(with user: User) {
+        nameLabel.text = "Hello, \(user.fullName)"
+        addressLabel.text = user.fullAddress ?? "Set your address"
+    }
+}
+
+// (Ensuring SectionHeaderView, CategoryCell, BannerCell are present in the file)
+final class BannerCell: UICollectionViewCell {
+    static let identifier = "BannerCell"
+    private let imageView = UIImageView()
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        contentView.addSubview(imageView)
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        imageView.roundCorners(radius: 12)
+        imageView.snp.makeConstraints { make in make.edges.equalToSuperview() }
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    func configure(with banner: Banner) {
+        if let url = URL(string: banner.imageUrl) { imageView.kf.setImage(with: url) }
+    }
+}
+
+final class CategoryCell: UICollectionViewCell {
+    static let identifier = "CategoryCell"
+    private let imageView = UIImageView()
+    private let label = UILabel()
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        let stack = UIStackView(arrangedSubviews: [imageView, label])
+        stack.axis = .vertical; stack.alignment = .center; stack.spacing = 4
+        contentView.addSubview(stack)
+        stack.snp.makeConstraints { make in make.edges.equalToSuperview() }
+        imageView.snp.makeConstraints { make in make.size.equalTo(50) }
+        imageView.backgroundColor = Brand.secondary; imageView.roundCorners(radius: 25)
+        label.font = Brand.Typography.body(size: 12); label.textAlignment = .center
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    func configure(with category: Category) {
+        label.text = category.name
+        if let iconUrl = category.iconUrl, let url = URL(string: iconUrl) { imageView.kf.setImage(with: url) }
+    }
+}
+
+final class SectionHeaderView: UICollectionReusableView {
+    static let identifier = "SectionHeaderView"
+    let titleLabel = UILabel()
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        addSubview(titleLabel)
+        titleLabel.font = Brand.Typography.subheader(size: 18)
+        titleLabel.snp.makeConstraints { make in
+            make.leading.trailing.equalToSuperview().inset(4); make.centerY.equalToSuperview()
+        }
+    }
+    required init?(coder: NSCoder) { fatalError() }
 }

@@ -47,6 +47,19 @@ class CartManager {
         try? context?.save()
         NotificationCenter.default.post(name: .cartUpdated, object: nil)
     }
+
+    func setQuantity(variantId: UUID, quantity: Int) {
+        let descriptor = FetchDescriptor<CartItem>(predicate: #Predicate { $0.variantId == variantId })
+        if let existingItem = try? context?.fetch(descriptor).first {
+            if quantity <= 0 {
+                context?.delete(existingItem)
+            } else {
+                existingItem.quantity = quantity
+            }
+            try? context?.save()
+            NotificationCenter.default.post(name: .cartUpdated, object: nil)
+        }
+    }
     
     func remove(variantId: UUID) {
         let descriptor = FetchDescriptor<CartItem>(predicate: #Predicate { $0.variantId == variantId })
@@ -69,6 +82,11 @@ class CartManager {
     
     var totalCount: Int {
         return items.reduce(0) { $0 + $1.quantity }
+    }
+
+    func quantity(for variantId: UUID) -> Int {
+        let descriptor = FetchDescriptor<CartItem>(predicate: #Predicate { $0.variantId == variantId })
+        return (try? context?.fetch(descriptor).first)?.quantity ?? 0
     }
     
     // MARK: - Sync Logic

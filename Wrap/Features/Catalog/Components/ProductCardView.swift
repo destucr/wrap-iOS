@@ -1,4 +1,5 @@
 import UIKit
+import Kingfisher
 
 final class ProductCardView: UICollectionViewCell {
     static let identifier = "ProductCardView"
@@ -104,18 +105,29 @@ final class ProductCardView: UICollectionViewCell {
         ])
     }
     
-    func configure(name: String, price: Double, unit: String?, stock: Int) {
-        nameLabel.text = name
-        priceLabel.text = String(format: "Rp %.0f", price)
-        unitLabel.text = unit != nil ? "/ \(unit!)" : ""
+    func configure(with product: Product) {
+        nameLabel.text = product.name
+        priceLabel.text = String(format: "Rp %.0f", product.basePrice)
         
-        if stock > 0 && stock < 5 {
-            scarcityLabel.text = "Only \(stock) left"
-            scarcityLabel.isHidden = false
+        let weight = product.weightLabel ?? product.unitOfMeasure
+        unitLabel.text = weight != nil ? "/ \(weight!)" : ""
+        
+        if let firstVariant = product.variants?.first {
+            let stock = firstVariant.qtyOnHand
+            if stock > 0 && stock < 5 {
+                scarcityLabel.text = "Sisa \(stock)"
+                scarcityLabel.isHidden = false
+            } else {
+                scarcityLabel.isHidden = true
+            }
         } else {
             scarcityLabel.isHidden = true
         }
         
-        // Image loading logic would go here (e.g. Kingfisher)
+        if let imageUrlString = product.images?.first, let url = URL(string: imageUrlString) {
+            imageView.kf.setImage(with: url, placeholder: UIImage(systemName: "photo"))
+        } else {
+            imageView.image = UIImage(systemName: "photo")
+        }
     }
 }

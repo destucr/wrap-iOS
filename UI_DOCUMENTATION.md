@@ -8,12 +8,12 @@ The Wrap iOS architecture is built on a **Feature-Based MVC + Coordinator** patt
 
 ### 1.1 Home Dashboard (`HomeViewController`)
 - **Root**: `UICollectionView` using `UICollectionViewCompositionalLayout`.
+- **Data-Driven**: Fully dynamic feed fetched from `/catalog/home`.
 - **Sections**:
     - **Header**: Navigation Bar containing `PulseStatusChip` (Left) and `SearchBar` (TitleView).
-    - **Section 0 (Hero)**: `HeroBannerCell` horizontal carousel (Group Paging).
-    - **Section 1 (Navigation)**: `CategoryShortcutCell` 4-column icon grid.
-    - **Section 2 (Habits)**: `ProductCardSmall` horizontal scroll of "Your Usuals".
-    - **Section 3 (Main Feed)**: `ProductCardView` 2-column vertical grid for Trending/Discovery.
+    - **Section 0 (Banners)**: `BannerCell` dynamic carousel.
+    - **Section 1 (Categories)**: `CategoryCell` icon grid.
+    - **Sections 2+ (Product Sections)**: `ProductCardView` sections (e.g., "Featured", "Flash Sale").
 
 ### 1.2 Interactive Components
 - **Interactive Stepper (`InteractiveStepper`)**: 
@@ -21,13 +21,11 @@ The Wrap iOS architecture is built on a **Feature-Based MVC + Coordinator** patt
     - Integrated with `UIImpactFeedbackGenerator` for tactile response.
 - **Product Card (`ProductCardView`)**: 
     - Composite view utilizing `Kingfisher` for async image loading.
-    - Overlay layer for `ScarcityBadge` and `TemperatureIcon`.
+    - Dynamic data binding: `weight_label` (Metadata), `qty_on_hand` (ScarcityBadge).
 
 ### 1.3 Product Detail Page (The Trust Builder)
-- **Temperature Indicator**: Critical for FMCG (e.g., `[ ❄️ Chilled ]` or `[ 🔥 Hot ]`).
-- **Replacement Preferences**: 
-    - *Label*: `"If out of stock:"`
-    - *Options*: `[ Call me ]`, `[ Replace with similar ]`, `[ Refund ]`.
+- **Dynamic Fetching**: Fetches full product details from `/catalog/detail/{id}`.
+- **Metadata**: Displays `Weight` (using `weight_label` or `unit_of_measure`), `Stock`, and `Temperature`.
 - **Direct Cart Toggle**: A sticky footer quantity selector that remains visible regardless of scroll depth.
 
 ### 1.4 Identity & Access (`LoginViewController`)

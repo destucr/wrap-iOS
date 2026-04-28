@@ -4,6 +4,7 @@ import SnapKit
 final class ReviewOrderViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
+    private var stepperToVariantMap: [InteractiveStepper: UUID] = [:]
     
     private let scrollView = UIScrollView()
     private let contentView = UIView()
@@ -38,6 +39,8 @@ final class ReviewOrderViewController: UIViewController {
     
     // Pricing Breakdown
     private let pricingCard = UIView()
+    private let priceStack = UIStackView()
+    
     private func createPricingRow(label: String, value: String, isTotal: Bool = false) -> UIStackView {
         let l = UILabel()
         l.text = label
@@ -66,7 +69,6 @@ final class ReviewOrderViewController: UIViewController {
     
     private let finalTotalLabel: UILabel = {
         let label = UILabel()
-        label.text = "Rp 35.000"
         label.font = Brand.Typography.header(size: 20)
         label.textColor = .black
         return label
@@ -86,10 +88,22 @@ final class ReviewOrderViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         loadItems()
+        updateSummary()
+        setupObservers()
+    }
+    
+    private func setupObservers() {
+        NotificationCenter.default.addObserver(self, selector: #selector(cartDidUpdate), name: .cartUpdated, object: nil)
+    }
+    
+    @objc private func cartDidUpdate() {
+        // Only reload if we are not currently dragging or if count changed
+        loadItems()
+        updateSummary()
     }
     
     private func setupUI() {
-        view.backgroundColor = Brand.secondary // Neutral background for cards
+        view.backgroundColor = Brand.secondary
         title = "Review Order"
         
         view.addSubview(scrollView)
@@ -108,19 +122,14 @@ final class ReviewOrderViewController: UIViewController {
             make.top.leading.equalToSuperview().offset(16)
         }
         addressLabel.snp.makeConstraints { make in
-            make.top.equalTo(nameLabel.bottomAnchor).offset(4)
+            make.top.equalTo(nameLabel.snp.bottom).offset(4)
             make.leading.trailing.bottom.equalToSuperview().inset(16)
         }
         
         // Pricing Card Setup
         pricingCard.backgroundColor = .white
         pricingCard.roundCorners(radius: 12)
-        let priceStack = UIStackView(arrangedSubviews: [
-            createPricingRow(label: "Total Harga Barang", value: "Rp 30.000"),
-            createPricingRow(label: "Delivery Fee", value: "Rp 5.000"),
-            createPricingRow(label: "Service Fee", value: "Rp 1.000"),
-            createPricingRow(label: "Voucher", value: "- Rp 0", isTotal: false)
-        ])
+        
         priceStack.axis = .vertical
         priceStack.spacing = 12
         pricingCard.addSubview(priceStack)
@@ -133,7 +142,7 @@ final class ReviewOrderViewController: UIViewController {
         bottomBar.applyShadow()
         bottomBar.snp.makeConstraints { make in
             make.bottom.leading.trailing.equalToSuperview()
-            make.height.equalTo(100)
+            make.height.equalTo(100 + (UIApplication.shared.windows.first?.safeAreaInsets.bottom ?? 0))
         }
         
         bottomBar.addSubview(totalPaymentLabel)
@@ -146,7 +155,7 @@ final class ReviewOrderViewController: UIViewController {
         }
         
         finalTotalLabel.snp.makeConstraints { make in
-            make.top.equalTo(totalPaymentLabel.bottomAnchor).offset(2)
+            make.top.equalTo(totalPaymentLabel.snp.bottom).offset(2)
             make.leading.equalToSuperview().offset(20)
         }
         
@@ -173,47 +182,55 @@ final class ReviewOrderViewController: UIViewController {
         }
         
         itemsHeader.snp.makeConstraints { make in
-            make.top.equalTo(addressCard.bottomAnchor).offset(24)
+            make.top.equalTo(addressCard.snp.bottom).offset(24)
             make.leading.equalToSuperview().offset(16)
         }
         
         itemsStack.snp.makeConstraints { make in
-            make.top.equalTo(itemsHeader.bottomAnchor).offset(12)
+            make.top.equalTo(itemsHeader.snp.bottom).offset(12)
             make.leading.trailing.equalToSuperview().inset(16)
         }
         
         pricingCard.snp.makeConstraints { make in
-            make.top.equalTo(itemsStack.bottomAnchor).offset(24)
+            make.top.equalTo(itemsStack.snp.bottom).offset(24)
             make.leading.trailing.equalToSuperview().inset(16)
             make.bottom.equalToSuperview().offset(-20)
         }
+        
+        payButton.addTarget(self, action: #selector(didTapPay), for: .touchUpInside)
     }
     
     private func loadItems() {
-        // Simulated items
-        for i in 1...2 {
+        itemsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        stepperToVariantMap.removeAll()
+        
+        let cartItems = CartManager.shared.items
+        for item in cartItems {
             let itemView = UIView()
             itemView.backgroundColor = .white
             itemView.roundCorners(radius: 12)
             
             let name = UILabel()
-            name.text = "Product \(i)"
+            name.text = item.name
             name.font = Brand.Typography.body(size: 14).withWeight(.bold)
             
             let price = UILabel()
-            price.text = "Rp 15.000"
+            price.text = String(format: "Rp %.0f", item.price)
             price.font = Brand.Typography.body(size: 14)
             
             let s = InteractiveStepper()
-            s.setValue(1)
+            s.setValue(item.quantity)
+            s.delegate = self
+            stepperToVariantMap[s] = item.variantId
             
             [name, price, s].forEach { itemView.addSubview($0) }
             
             name.snp.makeConstraints { make in
                 make.top.leading.equalToSuperview().offset(12)
+                make.trailing.equalTo(s.snp.leading).offset(-8)
             }
             price.snp.makeConstraints { make in
-                make.top.equalTo(name.bottomAnchor).offset(4)
+                make.top.equalTo(name.snp.bottom).offset(4)
                 make.leading.equalToSuperview().offset(12)
                 make.bottom.equalToSuperview().offset(-12)
             }
@@ -228,5 +245,53 @@ final class ReviewOrderViewController: UIViewController {
         }
         itemsStack.axis = .vertical
         itemsStack.spacing = 8
+    }
+    
+    private func updateSummary() {
+        priceStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        
+        let subtotal = CartManager.shared.totalAmount
+        let deliveryFee = 5000.0
+        let serviceFee = 1000.0
+        let total = subtotal + deliveryFee + serviceFee
+        
+        priceStack.addArrangedSubview(createPricingRow(label: "Total Harga Barang", value: String(format: "Rp %.0f", subtotal)))
+        priceStack.addArrangedSubview(createPricingRow(label: "Delivery Fee", value: String(format: "Rp %.0f", deliveryFee)))
+        priceStack.addArrangedSubview(createPricingRow(label: "Service Fee", value: String(format: "Rp %.0f", serviceFee)))
+        priceStack.addArrangedSubview(createPricingRow(label: "Voucher", value: "- Rp 0"))
+        
+        finalTotalLabel.text = String(format: "Rp %.0f", total)
+    }
+    
+    @objc private func didTapPay() {
+        // To be implemented with Xendit integration
+        Task {
+            do {
+                let address: [String: String] = [
+                    "street": "Jl. Merdeka No. 12",
+                    "floor_unit": "402",
+                    "postal_code": "12345"
+                ]
+                let response = try await CartManager.shared.placeOrder(address: address)
+                coordinator?.showOrderSuccess(orderId: response.orderId.uuidString, paymentUrl: response.paymentUrl)
+            } catch {
+                print("Order placement failed: \(error)")
+            }
+        }
+    }
+}
+
+extension ReviewOrderViewController: InteractiveStepperDelegate {
+    func stepper(_ stepper: InteractiveStepper, didUpdateValue value: Int) {
+        guard let variantId = stepperToVariantMap[stepper] else { return }
+        
+        CartManager.shared.setQuantity(variantId: variantId, quantity: value)
+        
+        if value <= 0 {
+            // Re-load items to remove the view
+            loadItems()
+        }
+        
+        updateSummary()
     }
 }
