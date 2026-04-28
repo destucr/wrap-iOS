@@ -70,7 +70,9 @@ class LoginViewController: UIViewController {
         let icon = BiometricManager.shared.biometricType == .faceID ? "faceid" : "touchid"
         button.setImage(UIImage(systemName: icon), for: .normal)
         button.tintColor = .systemBlue
-        button.isHidden = !BiometricManager.shared.canAuthenticate()
+        
+        // Deterministic check: Is it available AND enabled by the user?
+        button.isHidden = !BiometricManager.shared.canAuthenticate() || !AuthManager.shared.isBiometricsEnabled
         return button
     }()
     

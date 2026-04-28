@@ -30,6 +30,7 @@ class ProfileViewController: UIViewController {
     private let biometricSwitch: UISwitch = {
         let sw = UISwitch()
         sw.onTintColor = Brand.primary
+        sw.isOn = AuthManager.shared.isBiometricsEnabled
         return sw
     }()
     
@@ -75,12 +76,15 @@ class ProfileViewController: UIViewController {
         Task {
             do {
                 let user: User = try await NetworkManager.shared.request(endpoint: "/user/profile")
-                biometricSwitch.isOn = user.biometricsEnabled
-                AuthManager.shared.isBiometricsEnabled = user.biometricsEnabled
+                
+                // Only update if discrepancy found between Server and Local cache
+                if biometricSwitch.isOn != user.biometricsEnabled {
+                    biometricSwitch.setOn(user.biometricsEnabled, animated: true)
+                    AuthManager.shared.isBiometricsEnabled = user.biometricsEnabled
+                }
             } catch {
                 print("Failed to fetch profile: \(error)")
-                // Fallback to local preference if network fails
-                biometricSwitch.isOn = AuthManager.shared.isBiometricsEnabled
+                // Keep the local state (already set in setupUI)
             }
         }
     }
