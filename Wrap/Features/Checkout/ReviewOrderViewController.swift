@@ -30,7 +30,7 @@ final class ReviewOrderViewController: UIViewController {
     // Order List
     private let itemsHeader: UILabel = {
         let label = UILabel()
-        label.text = "Order Summary"
+        label.text = "Ringkasan Pesanan"
         label.font = Brand.Typography.subheader(size: 18)
         return label
     }()
@@ -61,7 +61,7 @@ final class ReviewOrderViewController: UIViewController {
     private let bottomBar = UIView()
     private let totalPaymentLabel: UILabel = {
         let label = UILabel()
-        label.text = "Total Payment"
+        label.text = "Total Pembayaran"
         label.font = Brand.Typography.body(size: 12)
         label.textColor = .secondaryLabel
         return label
@@ -76,7 +76,7 @@ final class ReviewOrderViewController: UIViewController {
     
     private let payButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("Pay Now", for: .normal)
+        button.setTitle("Bayar Sekarang", for: .normal)
         button.backgroundColor = Brand.primary
         button.setTitleColor(.white, for: .normal)
         button.titleLabel?.font = Brand.Typography.subheader(size: 16)

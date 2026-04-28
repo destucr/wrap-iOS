@@ -184,6 +184,7 @@ final class HomeHeaderView: UIView {
         let label = UILabel()
         label.font = Brand.Typography.subheader(size: 14)
         label.textColor = .secondaryLabel
+        label.text = "Halo,"
         return label
     }()
     
@@ -192,12 +193,13 @@ final class HomeHeaderView: UIView {
         label.font = Brand.Typography.subheader(size: 16)
         label.textColor = .black
         label.numberOfLines = 1
+        label.text = "Atur alamat..."
         return label
     }()
     
     private let searchBar: UISearchBar = {
         let sb = UISearchBar()
-        sb.placeholder = "Search Indomie, Eggs, or Milk..."
+        sb.placeholder = "Cari Indomie, Telur, atau Susu..."
         sb.searchBarStyle = .minimal
         return sb
     }()
