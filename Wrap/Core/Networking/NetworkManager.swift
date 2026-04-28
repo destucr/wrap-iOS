@@ -11,12 +11,31 @@ class NetworkManager {
     static let shared = NetworkManager()
     
     private let baseURL = Environment.baseURL.absoluteString
-    private var authToken: String?
+    private var authToken: String? {
+        didSet {
+            if let token = authToken {
+                if let data = token.data(using: .utf8) {
+                    KeychainHelper.shared.save(data, service: "com.wrap.auth", account: "token")
+                }
+            } else {
+                KeychainHelper.shared.delete(service: "com.wrap.auth", account: "token")
+            }
+        }
+    }
     
-    private init() {}
+    private init() {
+        if let data = KeychainHelper.shared.read(service: "com.wrap.auth", account: "token"),
+           let token = String(data: data, encoding: .utf8) {
+            self.authToken = token
+        }
+    }
     
     func setAuthToken(_ token: String) {
         self.authToken = token
+    }
+    
+    func hasValidToken() -> Bool {
+        return authToken != nil
     }
     
     func request<T: Codable>(
@@ -41,6 +60,7 @@ class NetworkManager {
         
         if isLoadTest {
             request.setValue("true", forHTTPHeaderField: "X-Load-Test")
+            request.setValue(Environment.loadTestSecret, forHTTPHeaderField: "X-Load-Test-Secret")
         }
         
         request.httpBody = body

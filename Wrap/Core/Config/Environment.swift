@@ -21,6 +21,7 @@ enum Environment {
     static let firebaseProjectID = infoDictionary["FIREBASE_PROJECT_ID"] as? String ?? ""
     static let firebaseWebAPIKey = infoDictionary["FIREBASE_WEB_API_KEY"] as? String ?? ""
     static let onesignalAppID = infoDictionary["ONESIGNAL_APP_ID"] as? String ?? ""
+    static let loadTestSecret = infoDictionary["LOAD_TEST_SECRET"] as? String ?? ""
     
     // MARK: - Mode
     static let isDevelopment: Bool = {
