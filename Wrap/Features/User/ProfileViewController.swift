@@ -48,12 +48,12 @@ class ProfileViewController: UIViewController {
         view.addSubview(logoutButton)
         
         titleLabel.snp.makeConstraints { make in
-            make.top.equalTo(view.safeAreaLayoutGuide).offset(40)
+            make.top.equalTo(view.snp.topMargin).offset(40)
             make.leading.equalToSuperview().offset(20)
         }
         
         biometricLabel.snp.makeConstraints { make in
-            make.top.equalTo(titleLabel.bottomAnchor).offset(40)
+            make.top.equalTo(titleLabel.snp.bottom).offset(40)
             make.leading.equalToSuperview().offset(20)
         }
         
@@ -63,7 +63,7 @@ class ProfileViewController: UIViewController {
         }
         
         logoutButton.snp.makeConstraints { make in
-            make.bottom.equalTo(view.safeAreaLayoutGuide).offset(-40)
+            make.bottom.equalTo(view.snp.bottomMargin).offset(-40)
             make.centerX.equalToSuperview()
         }
         

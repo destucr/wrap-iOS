@@ -79,7 +79,7 @@ class LoginViewController: UIViewController {
         }
         
         biometricButton.snp.makeConstraints { make in
-            make.top.equalTo(stackView.bottomAnchor).offset(20)
+            make.top.equalTo(stackView.snp.bottom).offset(20)
             make.centerX.equalToSuperview()
             make.size.equalTo(50)
         }
