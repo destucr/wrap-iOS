@@ -181,6 +181,7 @@ final class ReviewOrderViewController: UIViewController {
                     "postal_code": "12345"
                 ]
                 let response = try await CartManager.shared.placeOrder(address: address)
+                CartManager.shared.clear()
                 coordinator?.showOrderSuccess(orderId: response.orderId.uuidString, paymentUrl: response.paymentUrl)
             } catch {
                 print("Order placement failed: \(error)")
