@@ -4,58 +4,18 @@ import SnapKit
 final class ReviewOrderViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
-    private var stepperToVariantMap: [InteractiveStepper: UUID] = [:]
+    private var recommendations: [Product] = []
+    private var cartItems: [CartItem] = []
     
-    private let scrollView = UIScrollView()
-    private let contentView = UIView()
-    
-    // Identity Section
-    private let addressCard = UIView()
-    private let nameLabel: UILabel = {
-        let label = UILabel()
-        label.text = "Destu"
-        label.font = Brand.Typography.subheader(size: 16)
-        return label
+    private let tableView: UITableView = {
+        let tv = UITableView(frame: .zero, style: .grouped)
+        tv.backgroundColor = .clear
+        tv.separatorStyle = .none
+        tv.showsVerticalScrollIndicator = false
+        return tv
     }()
     
-    private let addressLabel: UILabel = {
-        let label = UILabel()
-        label.text = "Jl. Merdeka No. 12, Floor 4, Unit 402"
-        label.font = Brand.Typography.body(size: 14)
-        label.textColor = .secondaryLabel
-        label.numberOfLines = 2
-        return label
-    }()
-    
-    // Order List
-    private let itemsHeader: UILabel = {
-        let label = UILabel()
-        label.text = "Ringkasan Pesanan"
-        label.font = Brand.Typography.subheader(size: 18)
-        return label
-    }()
-    
-    private let itemsStack = UIStackView()
-    
-    // Pricing Breakdown
-    private let pricingCard = UIView()
-    private let priceStack = UIStackView()
-    
-    private func createPricingRow(label: String, value: String, isTotal: Bool = false) -> UIStackView {
-        let l = UILabel()
-        l.text = label
-        l.font = isTotal ? Brand.Typography.subheader(size: 18) : Brand.Typography.body(size: 14)
-        
-        let v = UILabel()
-        v.text = value
-        v.font = isTotal ? Brand.Typography.subheader(size: 18) : Brand.Typography.body(size: 14)
-        v.textColor = isTotal ? Brand.primary : .label
-        
-        let stack = UIStackView(arrangedSubviews: [l, v])
-        stack.axis = .horizontal
-        stack.distribution = .equalSpacing
-        return stack
-    }
+    private let emptyStateView = EmptyCartView()
     
     // Sticky Bottom Bar
     private let bottomBar = UIView()
@@ -87,9 +47,13 @@ final class ReviewOrderViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        loadItems()
-        updateSummary()
         setupObservers()
+        fetchRecommendations()
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        updateUIState()
     }
     
     private func setupObservers() {
@@ -97,45 +61,22 @@ final class ReviewOrderViewController: UIViewController {
     }
     
     @objc private func cartDidUpdate() {
-        // Only reload if we are not currently dragging or if count changed
-        loadItems()
-        updateSummary()
+        updateUIState()
     }
     
     private func setupUI() {
         view.backgroundColor = Brand.secondary
         title = "Review Order"
         
-        view.addSubview(scrollView)
+        view.addSubview(tableView)
         view.addSubview(bottomBar)
-        scrollView.addSubview(contentView)
+        view.addSubview(emptyStateView)
         
-        [addressCard, itemsHeader, itemsStack, pricingCard].forEach { contentView.addSubview($0) }
-        
-        // Address Card Setup
-        addressCard.backgroundColor = .white
-        addressCard.roundCorners(radius: 12)
-        addressCard.addSubview(nameLabel)
-        addressCard.addSubview(addressLabel)
-        
-        nameLabel.snp.makeConstraints { make in
-            make.top.leading.equalToSuperview().offset(16)
-        }
-        addressLabel.snp.makeConstraints { make in
-            make.top.equalTo(nameLabel.snp.bottom).offset(4)
-            make.leading.trailing.bottom.equalToSuperview().inset(16)
-        }
-        
-        // Pricing Card Setup
-        pricingCard.backgroundColor = .white
-        pricingCard.roundCorners(radius: 12)
-        
-        priceStack.axis = .vertical
-        priceStack.spacing = 12
-        pricingCard.addSubview(priceStack)
-        priceStack.snp.makeConstraints { make in
-            make.edges.equalToSuperview().inset(16)
-        }
+        tableView.delegate = self
+        tableView.dataSource = self
+        tableView.register(AddressCell.self, forCellReuseIdentifier: AddressCell.identifier)
+        tableView.register(ReviewItemCell.self, forCellReuseIdentifier: ReviewItemCell.identifier)
+        tableView.register(PricingCell.self, forCellReuseIdentifier: PricingCell.identifier)
         
         // Layout Constraints
         bottomBar.backgroundColor = .white
@@ -166,105 +107,72 @@ final class ReviewOrderViewController: UIViewController {
             make.height.equalTo(44)
         }
         
-        scrollView.snp.makeConstraints { make in
+        tableView.snp.makeConstraints { make in
             make.top.leading.trailing.equalToSuperview()
             make.bottom.equalTo(bottomBar.snp.top)
         }
         
-        contentView.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
-            make.width.equalToSuperview()
+        emptyStateView.snp.makeConstraints { make in
+            make.top.equalTo(view.safeAreaLayoutGuide)
+            make.leading.trailing.bottom.equalToSuperview()
         }
         
-        addressCard.snp.makeConstraints { make in
-            make.top.equalToSuperview().offset(16)
-            make.leading.trailing.equalToSuperview().inset(16)
-        }
-        
-        itemsHeader.snp.makeConstraints { make in
-            make.top.equalTo(addressCard.snp.bottom).offset(24)
-            make.leading.equalToSuperview().offset(16)
-        }
-        
-        itemsStack.snp.makeConstraints { make in
-            make.top.equalTo(itemsHeader.snp.bottom).offset(12)
-            make.leading.trailing.equalToSuperview().inset(16)
-        }
-        
-        pricingCard.snp.makeConstraints { make in
-            make.top.equalTo(itemsStack.snp.bottom).offset(24)
-            make.leading.trailing.equalToSuperview().inset(16)
-            make.bottom.equalToSuperview().offset(-20)
-        }
-        
+        emptyStateView.shopButton.addTarget(self, action: #selector(handleMulaiBelanja), for: .touchUpInside)
         payButton.addTarget(self, action: #selector(didTapPay), for: .touchUpInside)
+        
+        emptyStateView.recommendationsCollectionView.delegate = self
+        emptyStateView.recommendationsCollectionView.dataSource = self
     }
     
-    private func loadItems() {
-        itemsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        stepperToVariantMap.removeAll()
-        
-        let cartItems = CartManager.shared.items
-        for item in cartItems {
-            let itemView = UIView()
-            itemView.backgroundColor = .white
-            itemView.roundCorners(radius: 12)
-            
-            let name = UILabel()
-            name.text = item.name
-            name.font = Brand.Typography.body(size: 14).withWeight(.bold)
-            
-            let price = UILabel()
-            price.text = String(format: "Rp %.0f", item.price)
-            price.font = Brand.Typography.body(size: 14)
-            
-            let s = InteractiveStepper()
-            s.setValue(item.quantity)
-            s.delegate = self
-            stepperToVariantMap[s] = item.variantId
-            
-            [name, price, s].forEach { itemView.addSubview($0) }
-            
-            name.snp.makeConstraints { make in
-                make.top.leading.equalToSuperview().offset(12)
-                make.trailing.equalTo(s.snp.leading).offset(-8)
+    private func fetchRecommendations() {
+        Task {
+            do {
+                let products: [Product] = try await NetworkManager.shared.request(endpoint: "/catalog/products")
+                self.recommendations = Array(products.prefix(10))
+                self.emptyStateView.recommendationsCollectionView.reloadData()
+            } catch {
+                print("Failed to fetch recommendations: \(error)")
             }
-            price.snp.makeConstraints { make in
-                make.top.equalTo(name.snp.bottom).offset(4)
-                make.leading.equalToSuperview().offset(12)
-                make.bottom.equalToSuperview().offset(-12)
-            }
-            s.snp.makeConstraints { make in
-                make.centerY.equalToSuperview()
-                make.trailing.equalToSuperview().offset(-12)
-                make.width.equalTo(100)
-                make.height.equalTo(32)
-            }
-            
-            itemsStack.addArrangedSubview(itemView)
         }
-        itemsStack.axis = .vertical
-        itemsStack.spacing = 8
+    }
+    
+    private func updateUIState() {
+        self.cartItems = CartManager.shared.items
+        let isEmpty = cartItems.isEmpty
+        
+        tableView.isHidden = isEmpty
+        bottomBar.isHidden = isEmpty
+        emptyStateView.isHidden = !isEmpty
+        
+        if isEmpty {
+            navigationItem.title = ""
+        } else {
+            navigationItem.title = "Review Order"
+            tableView.reloadData()
+            updateSummary()
+        }
+        
+        // Update tab badge
+        if let cartTab = tabBarController?.tabBar.items?[1] {
+            let count = CartManager.shared.totalCount
+            cartTab.badgeValue = count > 0 ? "\(count)" : nil
+            cartTab.badgeColor = Brand.primary
+        }
     }
     
     private func updateSummary() {
-        priceStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        
         let subtotal = CartManager.shared.totalAmount
         let deliveryFee = 5000.0
         let serviceFee = 1000.0
         let total = subtotal + deliveryFee + serviceFee
-        
-        priceStack.addArrangedSubview(createPricingRow(label: "Total Harga Barang", value: String(format: "Rp %.0f", subtotal)))
-        priceStack.addArrangedSubview(createPricingRow(label: "Delivery Fee", value: String(format: "Rp %.0f", deliveryFee)))
-        priceStack.addArrangedSubview(createPricingRow(label: "Service Fee", value: String(format: "Rp %.0f", serviceFee)))
-        priceStack.addArrangedSubview(createPricingRow(label: "Voucher", value: "- Rp 0"))
-        
-        finalTotalLabel.text = String(format: "Rp %.0f", total)
+        finalTotalLabel.text = total.formattedIDR
+    }
+    
+    @objc private func handleMulaiBelanja() {
+        tabBarController?.selectedIndex = 0
     }
     
     @objc private func didTapPay() {
-        // To be implemented with Xendit integration
         Task {
             do {
                 let address: [String: String] = [
@@ -281,17 +189,244 @@ final class ReviewOrderViewController: UIViewController {
     }
 }
 
-extension ReviewOrderViewController: InteractiveStepperDelegate {
-    func stepper(_ stepper: InteractiveStepper, didUpdateValue value: Int) {
-        guard let variantId = stepperToVariantMap[stepper] else { return }
-        
-        CartManager.shared.setQuantity(variantId: variantId, quantity: value)
-        
-        if value <= 0 {
-            // Re-load items to remove the view
-            loadItems()
+// MARK: - UITableView Delegate & DataSource
+extension ReviewOrderViewController: UITableViewDelegate, UITableViewDataSource {
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return 3
+    }
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        switch section {
+        case 0: return 1 // Address
+        case 1: return cartItems.count // Items
+        case 2: return 1 // Pricing
+        default: return 0
+        }
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        switch indexPath.section {
+        case 0:
+            let cell = tableView.dequeueReusableCell(withIdentifier: AddressCell.identifier, for: indexPath) as! AddressCell
+            return cell
+        case 1:
+            let cell = tableView.dequeueReusableCell(withIdentifier: ReviewItemCell.identifier, for: indexPath) as! ReviewItemCell
+            let item = cartItems[indexPath.row]
+            cell.configure(with: item)
+            cell.onQuantityChange = { [weak self] newQty in
+                CartManager.shared.setQuantity(variantId: item.variantId, quantity: newQty)
+                self?.updateUIState()
+            }
+            return cell
+        case 2:
+            let cell = tableView.dequeueReusableCell(withIdentifier: PricingCell.identifier, for: indexPath) as! PricingCell
+            cell.configure(subtotal: CartManager.shared.totalAmount)
+            return cell
+        default:
+            return UITableViewCell()
+        }
+    }
+    
+    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        if section == 1 { return "Ringkasan Pesanan" }
+        return nil
+    }
+    
+    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        if indexPath.section == 1 {
+            let deleteAction = UIContextualAction(style: .destructive, title: nil) { [weak self] (_, _, completion) in
+                guard let self = self else { return }
+                CartManager.shared.remove(variantId: self.cartItems[indexPath.row].variantId)
+                completion(true)
+            }
+            deleteAction.image = UIImage(systemName: "trash")
+            return UISwipeActionsConfiguration(actions: [deleteAction])
+        }
+        return nil
+    }
+}
+
+// MARK: - CollectionView (Recommendations)
+extension ReviewOrderViewController: UICollectionViewDelegate, UICollectionViewDataSource {
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return recommendations.count
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCardView.identifier, for: indexPath) as! ProductCardView
+        cell.configure(with: recommendations[indexPath.item])
+        cell.delegate = self
+        return cell
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let product = recommendations[indexPath.item]
+        coordinator?.showProductDetail(productId: product.id)
+    }
+}
+
+extension ReviewOrderViewController: ProductCardDelegate {
+    func productCard(_ cell: ProductCardView, didUpdateQuantity quantity: Int, for product: Product) {
+        guard let firstVariant = product.variants?.first else { return }
+        let price = firstVariant.priceOverride ?? product.basePrice
+        if quantity > 0 && CartManager.shared.items.first(where: { $0.variantId == firstVariant.id }) == nil {
+            CartManager.shared.add(variantId: firstVariant.id, name: product.name, price: price, quantity: quantity)
+        } else {
+            CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: quantity)
+        }
+        updateUIState()
+    }
+}
+
+// MARK: - Custom Cells
+final class AddressCell: UITableViewCell {
+    static let identifier = "AddressCell"
+    private let container = UIView()
+    private let nameLabel = UILabel()
+    private let addressLabel = UILabel()
+    
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        setupUI()
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    
+    private func setupUI() {
+        backgroundColor = .clear
+        selectionStyle = .none
+        contentView.addSubview(container)
+        container.backgroundColor = .white
+        container.roundCorners(radius: 12)
+        container.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16))
         }
         
-        updateSummary()
+        nameLabel.text = "Destu"
+        nameLabel.font = Brand.Typography.subheader(size: 16)
+        addressLabel.text = "Jl. Merdeka No. 12, Floor 4, Unit 402"
+        addressLabel.font = Brand.Typography.body(size: 14)
+        addressLabel.textColor = .secondaryLabel
+        addressLabel.numberOfLines = 2
+        
+        [nameLabel, addressLabel].forEach { container.addSubview($0) }
+        nameLabel.snp.makeConstraints { make in
+            make.top.leading.equalToSuperview().offset(16)
+        }
+        addressLabel.snp.makeConstraints { make in
+            make.top.equalTo(nameLabel.snp.bottom).offset(4)
+            make.leading.trailing.bottom.equalToSuperview().inset(16)
+        }
+    }
+}
+
+final class ReviewItemCell: UITableViewCell {
+    static let identifier = "ReviewItemCell"
+    private let container = UIView()
+    private let nameLabel = UILabel()
+    private let priceLabel = UILabel()
+    private let stepper = InteractiveStepper()
+    var onQuantityChange: ((Int) -> Void)?
+    
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        setupUI()
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    
+    private func setupUI() {
+        backgroundColor = .clear
+        selectionStyle = .none
+        contentView.addSubview(container)
+        container.backgroundColor = .white
+        container.roundCorners(radius: 12)
+        container.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(UIEdgeInsets(top: 4, left: 16, bottom: 4, right: 16))
+        }
+        
+        nameLabel.font = Brand.Typography.body(size: 14).withWeight(.bold)
+        nameLabel.numberOfLines = 2
+        priceLabel.font = Brand.Typography.body(size: 14)
+        stepper.delegate = self
+        
+        [nameLabel, priceLabel, stepper].forEach { container.addSubview($0) }
+        nameLabel.snp.makeConstraints { make in
+            make.top.equalToSuperview().offset(12)
+            make.leading.equalToSuperview().offset(12)
+            make.trailing.equalTo(stepper.snp.leading).offset(-12)
+        }
+        priceLabel.snp.makeConstraints { make in
+            make.top.equalTo(nameLabel.snp.bottom).offset(4)
+            make.leading.equalToSuperview().offset(12)
+            make.bottom.equalToSuperview().offset(-12)
+        }
+        stepper.snp.makeConstraints { make in
+            make.centerY.equalToSuperview()
+            make.trailing.equalToSuperview().offset(-12)
+            make.width.equalTo(100)
+            make.height.equalTo(32)
+        }
+    }
+    
+    func configure(with item: CartItem) {
+        nameLabel.text = item.name
+        priceLabel.text = item.price.formattedIDR
+        stepper.setValue(item.quantity)
+    }
+}
+
+extension ReviewItemCell: InteractiveStepperDelegate {
+    func stepper(_ stepper: InteractiveStepper, didUpdateValue value: Int) {
+        onQuantityChange?(value)
+    }
+}
+
+final class PricingCell: UITableViewCell {
+    static let identifier = "PricingCell"
+    private let container = UIView()
+    private let stack = UIStackView()
+    
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        setupUI()
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    
+    private func setupUI() {
+        backgroundColor = .clear
+        selectionStyle = .none
+        contentView.addSubview(container)
+        container.backgroundColor = .white
+        container.roundCorners(radius: 12)
+        container.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(UIEdgeInsets(top: 16, left: 16, bottom: 20, right: 16))
+        }
+        
+        stack.axis = .vertical
+        stack.spacing = 12
+        container.addSubview(stack)
+        stack.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(16)
+        }
+    }
+    
+    func configure(subtotal: Double) {
+        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        let deliveryFee = 5000.0
+        let serviceFee = 1000.0
+        
+        stack.addArrangedSubview(createRow(label: "Total Harga Barang", value: subtotal.formattedIDR))
+        stack.addArrangedSubview(createRow(label: "Delivery Fee", value: deliveryFee.formattedIDR))
+        stack.addArrangedSubview(createRow(label: "Service Fee", value: serviceFee.formattedIDR))
+        stack.addArrangedSubview(createRow(label: "Voucher", value: "- Rp0"))
+    }
+    
+    private func createRow(label: String, value: String) -> UIStackView {
+        let l = UILabel()
+        l.text = label; l.font = Brand.Typography.body(size: 14)
+        let v = UILabel()
+        v.text = value; v.font = Brand.Typography.body(size: 14)
+        let stack = UIStackView(arrangedSubviews: [l, v])
+        stack.axis = .horizontal; stack.distribution = .equalSpacing
+        return stack
     }
 }
