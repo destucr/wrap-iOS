@@ -85,8 +85,13 @@ class ProfileViewController: UIViewController {
     @objc private func handleLogout() {
         let alert = UIAlertController(title: "Logout", message: "Are you sure you want to log out?", preferredStyle: .actionSheet)
         alert.addAction(UIAlertAction(title: "Logout", style: .destructive, handler: { _ in
-            NetworkManager.shared.setAuthToken("") // Clear token (This triggers Keychain deletion in NetworkManager)
-            self.coordinator?.showLogin()
+            Task {
+                // Optional: Notify backend to clear FCM token
+                _ = try? await NetworkManager.shared.request(endpoint: "/user/logout", method: "POST") as [String: String]
+                
+                NetworkManager.shared.setAuthToken("") // Clear token (This triggers Keychain deletion in NetworkManager)
+                self.coordinator?.showLogin()
+            }
         }))
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         present(alert, animated: true)

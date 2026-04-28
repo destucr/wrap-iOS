@@ -34,7 +34,11 @@ class NetworkManager {
     }
     
     func setAuthToken(_ token: String) {
-        self.authToken = token
+        if token.isEmpty {
+            self.authToken = nil
+        } else {
+            self.authToken = token
+        }
     }
     
     func hasValidToken() -> Bool {

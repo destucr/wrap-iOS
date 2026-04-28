@@ -36,6 +36,8 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We need your location to deliver your order to your doorstep.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Wrap uses FaceID to provide a fast and secure login experience for your account.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

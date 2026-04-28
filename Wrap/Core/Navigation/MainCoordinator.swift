@@ -28,6 +28,11 @@ class MainCoordinator: Coordinator {
     }
     
     func showMainTab() {
+        guard NetworkManager.shared.hasValidToken() else {
+            showLogin()
+            return
+        }
+        
         let tabBar = MainTabBarController(coordinator: self)
         
         UIView.transition(with: window!, duration: 0.3, options: .transitionFlipFromRight, animations: {
@@ -44,7 +49,11 @@ class MainCoordinator: Coordinator {
     }
     
     func showCatalog() {
-        showMainTab()
+        if NetworkManager.shared.hasValidToken() {
+            showMainTab()
+        } else {
+            showLogin()
+        }
     }
     
     func showProductDetail(productId: UUID) {
