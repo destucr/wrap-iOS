@@ -22,7 +22,7 @@ class MainTabBarController: UITabBarController {
     
     private func setupTabs() {
         // 1. Catalog Tab
-        let catalogVC = CatalogViewController()
+        let catalogVC = HomeViewController()
         catalogVC.coordinator = mainCoordinator
         let catalogNav = UINavigationController(rootViewController: catalogVC)
         catalogNav.tabBarItem = UITabBarItem(title: "Shop", image: UIImage(systemName: "bag"), tag: 0)

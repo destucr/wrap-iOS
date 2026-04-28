@@ -21,10 +21,39 @@ struct Order: Codable {
     let paymentStatus: OrderStatus
     let deliveryStatus: DeliveryStatus
     let paymentUrl: String?
+    let rating: Int?
+    let ratingComment: String?
     let createdAt: Date
     let expiresAt: Date?
     
     enum CodingKeys: String, CodingKey {
-        case id, userId = "user_id", totalAmount = "total_amount", paymentStatus = "payment_status", deliveryStatus = "delivery_status", paymentUrl = "payment_url", createdAt = "created_at", expiresAt = "expires_at"
+        case id, userId = "user_id", totalAmount = "total_amount", paymentStatus = "payment_status", deliveryStatus = "delivery_status", paymentUrl = "payment_url", rating, ratingComment = "rating_comment", createdAt = "created_at", expiresAt = "expires_at"
+    }
+}
+
+struct OrderItem: Codable {
+    let id: UUID
+    let productName: String
+    let variantName: String
+    let quantity: Int
+    let priceAtPurchase: Double
+    
+    enum CodingKeys: String, CodingKey {
+        case id, productName = "product_name", variantName = "variant_name", quantity, priceAtPurchase = "price_at_purchase"
+    }
+}
+
+struct OrderDetailResponse: Codable {
+    let id: UUID
+    let totalAmount: Double
+    let paymentStatus: OrderStatus
+    let deliveryStatus: DeliveryStatus
+    let rating: Int?
+    let ratingComment: String?
+    let createdAt: Date
+    let items: [OrderItem]
+    
+    enum CodingKeys: String, CodingKey {
+        case id, totalAmount = "total_amount", paymentStatus = "payment_status", deliveryStatus = "delivery_status", rating, ratingComment = "rating_comment", createdAt = "created_at", items
     }
 }

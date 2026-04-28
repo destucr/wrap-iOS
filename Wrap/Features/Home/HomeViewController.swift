@@ -4,6 +4,8 @@ import SnapKit
 
 final class HomeViewController: UIViewController {
     
+    weak var coordinator: MainCoordinator?
+    
     private enum SectionType: String {
         case banners
         case categories
@@ -34,6 +36,11 @@ final class HomeViewController: UIViewController {
         fetchData()
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: animated)
+    }
+    
     private func setupUI() {
         view.backgroundColor = .systemBackground
         view.addSubview(headerView)
@@ -51,8 +58,6 @@ final class HomeViewController: UIViewController {
         
         collectionView.dataSource = self
         collectionView.delegate = self
-        
-        navigationController?.setNavigationBarHidden(true, animated: false)
     }
     
     private func fetchData() {
@@ -169,8 +174,13 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        if indexPath.section >= 2 {
-            let product = feed!.sections[indexPath.section - 2].items[indexPath.item]
+        guard let feed = feed else { return }
+        
+        if indexPath.section == 1 {
+            let category = feed.categories[indexPath.item]
+            coordinator?.showCategory(category: category)
+        } else if indexPath.section >= 2 {
+            let product = feed.sections[indexPath.section - 2].items[indexPath.item]
             coordinator?.showProductDetail(productId: product.id)
         }
     }

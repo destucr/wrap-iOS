@@ -21,14 +21,19 @@ The Wrap iOS architecture is built on a **Feature-Based MVC + Coordinator** patt
     - Integrated with `UIImpactFeedbackGenerator` for tactile response.
 - **Product Card (`ProductCardView`)**: 
     - Composite view utilizing `Kingfisher` for async image loading.
-    - Dynamic data binding: `weight_label` (Metadata), `qty_on_hand` (ScarcityBadge).
+    - Dynamic data binding: `brand` (Enriched Metadata), `is_halal` (Trust Indicator), `weight_label` (Metadata), `qty_on_hand` (ScarcityBadge).
 
-### 1.3 Product Detail Page (The Trust Builder)
+### 1.3 Empty States (`EmptyCartView`)
+- **Retention-First Design**: Instead of a dead-end, the empty cart features a "Rekomendasi Untukmu" (Recommended for You) horizontal feed.
+- **Dynamic Navigation**: "Mulai Belanja" button dynamically routes back to the main Catalog/Dashboard.
+- **State Management**: Navigation Bar titles and `largeTitleDisplayMode` toggle off in empty states to maximize vertical whitespace.
+
+### 1.4 Product Detail Page (The Trust Builder)
 - **Dynamic Fetching**: Fetches full product details from `/catalog/detail/{id}`.
 - **Metadata**: Displays `Weight` (using `weight_label` or `unit_of_measure`), `Stock`, and `Temperature`.
 - **Direct Cart Toggle**: A sticky footer quantity selector that remains visible regardless of scroll depth.
 
-### 1.4 Identity & Access (`LoginViewController`)
+### 1.5 Identity & Access (`LoginViewController`)
 - **Primary Stack**: Vertical `UIStackView` containing:
     - `TitleLabel`
     - `EmailTextField` & `PasswordTextField`
@@ -36,7 +41,7 @@ The Wrap iOS architecture is built on a **Feature-Based MVC + Coordinator** patt
     - `ORLabel` separator.
     - `GoogleSignInButton` (Full width).
 
-### 1.5 Profile & Settings (`ProfileViewController`)
+### 1.7 Profile & Settings (`ProfileViewController`)
 - **Identity Header**: Top section with User's Full Name and primary Address.
 - **Grouped List**: 
     - **Account**: `Detail Akun` (Name, Phone, Email).

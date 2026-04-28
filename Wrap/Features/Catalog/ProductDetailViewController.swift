@@ -108,6 +108,11 @@ final class ProductDetailViewController: UIViewController {
         setupObservers()
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: animated)
+    }
+    
     private func setupObservers() {
         NotificationCenter.default.addObserver(self, selector: #selector(cartDidUpdate), name: .cartUpdated, object: nil)
     }
@@ -232,6 +237,7 @@ final class ProductDetailViewController: UIViewController {
     }
     
     private func configureUI(with product: Product) {
+        title = product.name
         nameLabel.text = product.name
         priceLabel.text = "Rp \(Int(product.basePrice))"
         descriptionLabel.text = product.description ?? "Tidak ada deskripsi."

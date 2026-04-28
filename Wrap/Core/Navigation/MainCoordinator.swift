@@ -56,6 +56,12 @@ class MainCoordinator: Coordinator {
         }
     }
     
+    func showCategory(category: Category) {
+        let vc = CatalogViewController(category: category)
+        vc.coordinator = self
+        currentNavigationController?.pushViewController(vc, animated: true)
+    }
+    
     func showProductDetail(productId: UUID) {
         let vc = ProductDetailViewController(productId: productId)
         vc.coordinator = self
@@ -97,7 +103,13 @@ class MainCoordinator: Coordinator {
     func showOrderHistory() {
         // Handled by the Orders tab, but keep for programmatic access
         if let tabBar = window?.rootViewController as? UITabBarController {
-            tabBar.selectedIndex = 1
+            tabBar.selectedIndex = 2 // Fixed index for Orders tab
         }
+    }
+    
+    func showOrderDetail(orderId: UUID) {
+        let vc = OrderDetailViewController(orderId: orderId)
+        vc.coordinator = self
+        currentNavigationController?.pushViewController(vc, animated: true)
     }
 }

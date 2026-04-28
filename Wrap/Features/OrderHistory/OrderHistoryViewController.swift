@@ -147,6 +147,7 @@ extension OrderHistoryViewController: UITableViewDelegate, UITableViewDataSource
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        // Optionally show order detail
+        let order = orders[indexPath.row]
+        coordinator?.showOrderDetail(orderId: order.id)
     }
 }

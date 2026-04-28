@@ -32,6 +32,9 @@ We use **SwiftData** for order-grade local persistence.
 - **Xcode Previews:** Every View Controller includes a `#Preview` block. This is our "Visual Documentation" for future maintenance.
 - **Kingfisher:** Asynchronous image loading and disk caching for product assets.
 - **Haptics:** `UIImpactFeedbackGenerator` is used for non-disruptive feedback (e.g., adding to cart).
+- **Navigation Lifecycle:** To maintain the custom dashboard look while preserving the **Swipe-to-Back** gesture:
+    - `HomeViewController`: Hides the navigation bar in `viewWillAppear`.
+    - Secondary Screens: Explicitly unhide the navigation bar in `viewWillAppear` to show titles and back buttons.
 
 ## 📡 Networking
 - **NetworkManager**: Centralized URLSession wrapper with automatic Keychain integration for auth tokens.
@@ -48,6 +51,7 @@ We handle sensitive configurations in three layers:
 3. **Privacy Descriptions (`Info.plist`):** 
    - `NSFaceIDUsageDescription`: Required for biometric login.
    - `NSLocationWhenInUseUsageDescription`: Required for delivery logistics.
+   - `UIDesignRequiresCompatibility`: Set to `YES` to ensure layout consistency across modern iOS display variants.
 
 ## 🛡️ Security & Identity
 - **BiometricManager**: Singleton wrapper for `LocalAuthentication`. Supports FaceID and TouchID with fallback to manual credentials.

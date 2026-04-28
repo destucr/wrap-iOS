@@ -23,15 +23,16 @@ struct User: Codable {
     let id: UUID
     let email: String
     let fullName: String
+    let fullAddress: String?
     let biometricsEnabled: Bool
-    
+
     enum CodingKeys: String, CodingKey {
         case id, email
         case fullName = "full_name"
+        case fullAddress = "full_address"
         case biometricsEnabled = "biometrics_enabled"
     }
 }
-
 class AuthManager {
     static let shared = AuthManager()
     

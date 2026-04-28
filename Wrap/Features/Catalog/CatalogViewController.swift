@@ -87,6 +87,16 @@ class CatalogViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
     private var products: [Product] = []
+    private var category: Category?
+    
+    init(category: Category? = nil) {
+        self.category = category
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
     
     private let tableView: UITableView = {
         let tv = UITableView()
@@ -104,6 +114,11 @@ class CatalogViewController: UIViewController {
         setupObservers()
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: animated)
+    }
+    
     private func setupObservers() {
         NotificationCenter.default.addObserver(self, selector: #selector(updateCartBadge), name: .cartUpdated, object: nil)
     }
@@ -117,7 +132,7 @@ class CatalogViewController: UIViewController {
     }
     
     private func setupUI() {
-        title = "Wrap"
+        title = category?.name ?? "Wrap"
         navigationController?.navigationBar.prefersLargeTitles = true
         view.backgroundColor = .secondarySystemBackground
         
@@ -143,7 +158,12 @@ class CatalogViewController: UIViewController {
         activityIndicator.startAnimating()
         Task {
             do {
-                let fetchedProducts: [Product] = try await NetworkManager.shared.request(endpoint: "/catalog/products")
+                var endpoint = "/catalog/products"
+                if let categoryId = category?.id {
+                    endpoint += "?category_id=\(categoryId.uuidString.lowercased())"
+                }
+                
+                let fetchedProducts: [Product] = try await NetworkManager.shared.request(endpoint: endpoint)
                 activityIndicator.stopAnimating()
                 self.products = fetchedProducts
                 self.tableView.reloadData()

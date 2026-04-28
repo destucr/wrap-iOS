@@ -5,6 +5,8 @@ struct Product: Codable {
     let name: String
     let slug: String
     let description: String?
+    let brand: String?
+    let isHalal: Bool?
     let basePrice: Double
     let images: [String]?
     let tags: [String]?
@@ -15,7 +17,8 @@ struct Product: Codable {
     let variants: [ProductVariant]?
     
     enum CodingKeys: String, CodingKey {
-        case id, name, slug, description, tags, images, variants
+        case id, name, slug, description, brand, tags, images, variants
+        case isHalal = "is_halal"
         case basePrice = "base_price"
         case categoryId = "category_id"
         case unitOfMeasure = "unit_of_measure"
