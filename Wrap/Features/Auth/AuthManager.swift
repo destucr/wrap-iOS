@@ -13,6 +13,10 @@ struct AuthResponse: Codable {
     }
 }
 
+struct UserSyncResponse: Codable {
+    let message: String?
+}
+
 class AuthManager {
     static let shared = AuthManager()
     
@@ -49,7 +53,7 @@ class AuthManager {
         }
         
         let jsonData = try? JSONSerialization.data(withJSONObject: body)
-        let _: [String: Any] = try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: jsonData)
+        let _: UserSyncResponse = try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: jsonData)
     }
     
     func syncFCMToken(_ fcmToken: String) async throws {
@@ -59,6 +63,6 @@ class AuthManager {
         let body = ["fcm_token": fcmToken]
         guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else { return }
         
-        let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: jsonData)
+        let _: UserSyncResponse = try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: jsonData)
     }
 }
