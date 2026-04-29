@@ -27,6 +27,7 @@ struct CheckoutPreviewResponse: Codable, Sendable {
     let isValid: Bool
     let subtotal: Double
     let deliveryFee: Double
+    let serviceFee: Double
     let total: Double
     let items: [CheckoutPreviewItem]
 
@@ -34,6 +35,7 @@ struct CheckoutPreviewResponse: Codable, Sendable {
         case isValid = "is_valid"
         case subtotal
         case deliveryFee = "delivery_fee"
+        case serviceFee = "service_fee"
         case total, items
     }
 }

@@ -248,7 +248,11 @@ extension ReviewOrderViewController: UITableViewDelegate, UITableViewDataSource 
             return cell
         case 2:
             let cell = tableView.dequeueReusableCell(withIdentifier: PricingCell.identifier, for: indexPath) as! PricingCell
-            cell.configure(subtotal: CartManager.shared.totalAmount)
+            if let response = previewResponse {
+                cell.configure(with: response)
+            } else {
+                cell.configure(subtotal: CartManager.shared.totalAmount)
+            }
             return cell
         default:
             return UITableViewCell()
@@ -460,12 +464,15 @@ final class PricingCell: UITableViewCell {
     
     func configure(subtotal: Double) {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        let deliveryFee = 5000.0
-        let serviceFee = 1000.0
-        
         stack.addArrangedSubview(createRow(label: "Total Harga Barang", value: subtotal.formattedIDR))
-        stack.addArrangedSubview(createRow(label: "Delivery Fee", value: deliveryFee.formattedIDR))
-        stack.addArrangedSubview(createRow(label: "Service Fee", value: serviceFee.formattedIDR))
+        stack.addArrangedSubview(createRow(label: "Voucher", value: "- Rp0"))
+    }
+    
+    func configure(with response: CheckoutPreviewResponse) {
+        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        stack.addArrangedSubview(createRow(label: "Total Harga Barang", value: response.subtotal.formattedIDR))
+        stack.addArrangedSubview(createRow(label: "Delivery Fee", value: response.deliveryFee.formattedIDR))
+        stack.addArrangedSubview(createRow(label: "Service Fee", value: response.serviceFee.formattedIDR))
         stack.addArrangedSubview(createRow(label: "Voucher", value: "- Rp0"))
     }
     
