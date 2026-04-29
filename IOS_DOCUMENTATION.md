@@ -33,7 +33,7 @@ We use **SwiftData** for order-grade local persistence.
 - **Concurrency:** All models (`Product`, `UserData`, etc.) conform to `Sendable` for Swift 6 safety.
 
 ## 🎨 UI & Layout
-- **Core Animation**: Utilizes native `CAGradientLayer`, `CAEmitterLayer`, and `UIViewPropertyAnimator` for high-performance visual feedback without heavy third-party dependencies (Shimmer, Cart Pop, Confetti).
+- **Seamless Navigation**: Implements a custom `UIViewControllerAnimatedTransitioning` to create fluid, shared element transitions (image and title) between product lists and detail views, elevating the perceived quality without massive dependencies.
 - **SnapKit:** DSL for programmatic constraints.
 - **Unified Checkout:** The Cart and Review Order screens are unified into a single `ReviewOrderViewController` using `UITableView`.
 - **Native Gestures:** `ReviewOrderViewController` implements `trailingSwipeActionsConfigurationForRowAt` for native **Swipe-to-Delete** on products.

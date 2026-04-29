@@ -4,6 +4,8 @@ class MainCoordinator: Coordinator {
     var navigationController: UINavigationController
     var window: UIWindow?
     
+    private let sharedElementDelegate = SharedElementNavigationDelegate()
+    
     init(navigationController: UINavigationController, window: UIWindow?) {
         self.navigationController = navigationController
         self.window = window
@@ -59,13 +61,19 @@ class MainCoordinator: Coordinator {
     func showCatalogCategory(category: CatalogCategory) {
         let vc = CatalogViewController(category: category)
         vc.coordinator = self
-        currentNavigationController?.pushViewController(vc, animated: true)
+        if let nav = currentNavigationController {
+            nav.delegate = sharedElementDelegate
+            nav.pushViewController(vc, animated: true)
+        }
     }
     
     func showProductDetail(productId: UUID) {
         let vc = ProductDetailViewController(productId: productId)
         vc.coordinator = self
-        currentNavigationController?.pushViewController(vc, animated: true)
+        if let nav = currentNavigationController {
+            nav.delegate = sharedElementDelegate
+            nav.pushViewController(vc, animated: true)
+        }
     }
     
     func showCart() {
@@ -73,6 +81,7 @@ class MainCoordinator: Coordinator {
         vc.coordinator = self
         currentNavigationController?.pushViewController(vc, animated: true)
     }
+
     
     func showCheckoutPreview() {
         let vc = ReviewOrderViewController()

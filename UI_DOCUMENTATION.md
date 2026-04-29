@@ -106,11 +106,8 @@ Status: Active (Core Animation & Visual Polish)
 - **Subheader**: System Semibold (18pt).
 - **Haptic Logic**: `Medium` for cart edits, `Success` for handover.
 
-### 4.3 Motion & Animation (Core Animation)
-- **Skeleton Shimmer**: `CAGradientLayer` and `CABasicAnimation` applied to dummy cells (Banners, Categories, Products) during network fetches to maintain a continuous, smooth shimmering effect.
-- **Cart Badge Pop**: `UIViewPropertyAnimator` (spring-damped) used on the `MainTabBarController` to create a tactile "pop" effect when items are added/removed from the cart.
-- **Layout Transitions**: `UIView.transition(with:duration:options:animations:completion:)` using `.transitionCrossDissolve` provides fluid crossfades when toggling between empty states and populated views (e.g., `ReviewOrderViewController`).
-- **Order Success Celebration**: `CAEmitterLayer` generates a high-performance, multi-colored confetti burst on the `OrderSuccessViewController` upon successful payment routing.
+### 4.3 Motion & Animation
+- **Seamless Navigation**: `UIViewControllerAnimatedTransitioning` is implemented to provide a native "Shared Element Transition." When a user taps a product card on the Home Dashboard or Catalog List, the product image and title label detach and fluidly animate to their final positions on the `ProductDetailViewController`. This creates a premium, unbroken contextual flow rather than a standard lateral push.
 
 ### 4.4 Tab Bar Configuration
 | Index | Label | Icon | UX Context |

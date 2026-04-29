@@ -11,7 +11,7 @@ final class ProductCardView: UICollectionViewCell {
     weak var delegate: ProductCardDelegate?
     private var product: Product?
     
-    private let imageView: UIImageView = {
+    let imageView: UIImageView = {
         let iv = UIImageView()
         iv.contentMode = .scaleAspectFill
         iv.clipsToBounds = true
@@ -20,7 +20,7 @@ final class ProductCardView: UICollectionViewCell {
         return iv
     }()
     
-    private let nameLabel: UILabel = {
+    let nameLabel: UILabel = {
         let label = UILabel()
         label.font = Brand.Typography.subheader(size: 16)
         label.textColor = .black

@@ -277,14 +277,15 @@ extension ProductDetailViewController: InteractiveStepperDelegate {
         // Sync with CartManager
         CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: value)
         
-        // If it's a new item (was 0), we need to ensure it has name and price for first-time creation
-        // But CartManager.setQuantity only works if item exists. 
-        // Let's use a hybrid approach or fix setQuantity.
-        
         if value > 0 && CartManager.shared.items.first(where: { $0.variantId == firstVariant.id }) == nil {
              CartManager.shared.add(variantId: firstVariant.id, name: product.name, price: price, quantity: value)
         } else {
              CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: value)
         }
     }
+}
+
+extension ProductDetailViewController: SharedElementProvider {
+    var sharedImageView: UIImageView? { return imageView }
+    var sharedTitleLabel: UILabel? { return nameLabel }
 }

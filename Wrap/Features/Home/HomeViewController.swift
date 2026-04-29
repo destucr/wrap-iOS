@@ -17,6 +17,10 @@ final class HomeViewController: UIViewController {
     private var feed: HomeFeedData?
     private var user: UserData?
     
+    // Shared Element caching
+    var sharedImageView: UIImageView?
+    var sharedTitleLabel: UILabel?
+    
     private let headerView = HomeHeaderView()
     
     private lazy var collectionView: UICollectionView = {
@@ -87,7 +91,7 @@ final class HomeViewController: UIViewController {
     
     private func createLayout() -> UICollectionViewLayout {
         return UICollectionViewCompositionalLayout { [weak self] (sectionIndex, _) -> NSCollectionLayoutSection? in
-            guard let self = self else { return nil }
+            guard let self = self, let feed = self.feed else { return nil }
             
             if sectionIndex == 0 { // Banners
                 let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .fractionalHeight(1)))
@@ -104,20 +108,6 @@ final class HomeViewController: UIViewController {
                 section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 16, trailing: 16)
                 return section
             } else { // Dynamic Product Sections
-                guard let feed = self.feed else {
-                    // Vertical 2-column Grid for skeleton
-                    let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.5), heightDimension: .estimated(240)))
-                    item.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 16, trailing: 6)
-                    let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .estimated(240)), subitems: [item])
-                    let section = NSCollectionLayoutSection(group: group)
-                    section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 16, trailing: 10)
-                    
-                    let headerSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(44))
-                    let header = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: headerSize, elementKind: UICollectionView.elementKindSectionHeader, alignment: .top)
-                    section.boundarySupplementaryItems = [header]
-                    return section
-                }
-                
                 let feedSection = feed.sections[sectionIndex - 2]
                 
                 if feedSection.type == "personalized" {
@@ -154,54 +144,31 @@ final class HomeViewController: UIViewController {
 
 extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelegate {
     func numberOfSections(in collectionView: UICollectionView) -> Int {
-        guard let feed = feed else { return 3 } // Dummy sections for skeleton
+        guard let feed = feed else { return 0 }
         return 2 + feed.sections.count
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        guard let feed = feed else {
-            if section == 0 { return 1 } // 1 Banner skeleton
-            if section == 1 { return 4 } // 4 Category skeletons
-            return 4 // 4 Product skeletons
-        }
+        guard let feed = feed else { return 0 }
         if section == 0 { return feed.banners.count }
         if section == 1 { return feed.categories.count }
         return feed.sections[section - 2].items.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        if feed == nil {
-            if indexPath.section == 0 {
-                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
-                cell.contentView.startShimmering()
-                return cell
-            } else if indexPath.section == 1 {
-                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
-                cell.contentView.startShimmering()
-                return cell
-            } else {
-                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCardView.identifier, for: indexPath) as! ProductCardView
-                cell.contentView.startShimmering()
-                return cell
-            }
-        }
-        
         guard let feed = feed else { return UICollectionViewCell() }
         
         if indexPath.section == 0 {
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
-            cell.contentView.stopShimmering()
             cell.configure(with: feed.banners[indexPath.item])
             return cell
         } else if indexPath.section == 1 {
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
-            cell.contentView.stopShimmering()
             cell.configure(with: feed.categories[indexPath.item])
             return cell
         } else {
             let sectionData = feed.sections[indexPath.section - 2]
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCardView.identifier, for: indexPath) as! ProductCardView
-            cell.contentView.stopShimmering()
             cell.configure(with: sectionData.items[indexPath.item])
             cell.delegate = self
             return cell
@@ -226,6 +193,11 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
             let category = feed.categories[indexPath.item]
             coordinator?.showCatalogCategory(category: category)
         } else if indexPath.section >= 2 {
+            if let cell = collectionView.cellForItem(at: indexPath) as? ProductCardView {
+                self.sharedImageView = cell.imageView
+                self.sharedTitleLabel = cell.nameLabel
+            }
+            
             let product = feed.sections[indexPath.section - 2].items[indexPath.item]
             coordinator?.showProductDetail(productId: product.id)
         }
@@ -244,6 +216,8 @@ extension HomeViewController: ProductCardDelegate {
         }
     }
 }
+
+extension HomeViewController: SharedElementProvider {}
 
 // MARK: - Custom Views (Header, Cells, etc.)
 

@@ -14,7 +14,7 @@ class ProductCell: UITableViewCell {
     
     private let containerView = UIView()
     
-    private let productImageView: UIImageView = {
+    let productImageView: UIImageView = {
         let iv = UIImageView()
         iv.contentMode = .scaleAspectFill
         iv.clipsToBounds = true
@@ -23,7 +23,7 @@ class ProductCell: UITableViewCell {
         return iv
     }()
     
-    private let nameLabel: UILabel = {
+    let nameLabel: UILabel = {
         let label = UILabel()
         label.font = Brand.Typography.subheader()
         return label
@@ -116,11 +116,14 @@ extension ProductCell: InteractiveStepperDelegate {
     }
 }
 
-class CatalogViewController: UIViewController {
+class CatalogViewController: UIViewController, SharedElementProvider {
     
     weak var coordinator: MainCoordinator?
     private var products: [Product] = []
     private var category: CatalogCategory?
+    
+    var sharedImageView: UIImageView?
+    var sharedTitleLabel: UILabel?
     
     init(category: CatalogCategory? = nil) {
         self.category = category
@@ -223,6 +226,11 @@ extension CatalogViewController: UITableViewDelegate, UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        if let cell = tableView.cellForRow(at: indexPath) as? ProductCell {
+            self.sharedImageView = cell.productImageView
+            self.sharedTitleLabel = cell.nameLabel
+        }
+        
         let product = products[indexPath.row]
         coordinator?.showProductDetail(productId: product.id)
     }

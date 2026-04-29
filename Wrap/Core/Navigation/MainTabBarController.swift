@@ -25,7 +25,6 @@ class MainTabBarController: UITabBarController {
     
     @objc private func cartDidUpdate() {
         updateCartBadge()
-        animateCartTab()
     }
     
     private func updateCartBadge() {
@@ -34,18 +33,6 @@ class MainTabBarController: UITabBarController {
             cartTab.badgeValue = count > 0 ? "\(count)" : nil
             cartTab.badgeColor = Brand.primary
         }
-    }
-    
-    private func animateCartTab() {
-        guard let view = tabBar.subviews[safe: 2] else { return } // Index 0 is background, 1 is Shop, 2 is Cart
-        
-        let animator = UIViewPropertyAnimator(duration: 0.5, dampingRatio: 0.5) {
-            view.transform = CGAffineTransform(scaleX: 1.2, y: 1.2)
-        }
-        animator.addAnimations({
-            view.transform = .identity
-        }, delayFactor: 0.2)
-        animator.startAnimation()
     }
     
     private func setupTabs() {
