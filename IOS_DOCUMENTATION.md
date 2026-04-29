@@ -1,5 +1,5 @@
 # Wrap iOS Technical Documentation
-Version: 1.3 (Updated for Core Animation & Shimmer)
+Version: 1.4 (Updated for Tab Bar Visibility & Safe Area)
 Target: iOS 17.0+
 
 ## 🏛 Architecture: Feature-Based MVC + Coordinator
@@ -9,7 +9,7 @@ We use a modular structure where code is grouped by **Feature** rather than tech
 ### Folder Structure
 - `Core/`: Singleton managers and shared infrastructure.
   - `Networking/`: `NetworkManager` for API calls.
-  - `Navigation/`: `Coordinator` logic.
+  - `Navigation/`: `Coordinator` logic and `MainTabBarController`.
   - `Cart/`: `CartManager` for persistence logic.
   - `Theme/`: `Brand` definition and typography.
   - `Security/`: `BiometricManager` and `KeychainHelper`.
@@ -20,11 +20,11 @@ We use a modular structure where code is grouped by **Feature** rather than tech
     - `Components/`: `EmptyCartView`, `ReviewItemCell`.
     - `ReviewOrderViewController`: The unified Cart + Review screen.
 
-### Real-time Inventory Validation
+### Real-time Inventory Validation & Data Sync
 To prevent user frustration during checkout, the app uses the `/checkout/preview` endpoint for proactive state management:
 - **Trigger:** Call on cart load and whenever a stepper value changes.
 - **Logic:** If `is_valid` is `false`, the "Place Order" button must be disabled, and the affected `ReviewItemCell` should display the `message` (e.g., "Out of stock").
-- **Benefit:** Validates prices and stock against the "Physical Truth" without locking inventory, ensuring a smooth transition to the final atomic `place` call.
+- **Data Integrity:** UI updates are handled through `NotificationCenter` observers. `ReviewOrderViewController` prioritizes immediate local state updates while `Task`-based network previews run in the background with cancellation support to prevent stale data race conditions.
 
 ### The Coordinator Pattern
 Navigation is decoupled from ViewControllers. 
@@ -39,6 +39,8 @@ We use **SwiftData** for order-grade local persistence.
 - **Concurrency:** All models (`Product`, `UserData`, etc.) conform to `Sendable` for Swift 6 safety.
 
 ## 🎨 UI & Layout
+- **Tab Bar Visibility (iOS 15+):** We use `UITabBarAppearance` in `MainTabBarController` to enforce an opaque background. This prevents the tab bar from disappearing or appearing overly transparent when scrollable content passes behind it.
+- **Sticky Bottom Bars:** In controllers like `ReviewOrderViewController`, sticky footers must be pinned to `view.safeAreaLayoutGuide.snp.bottom` rather than the superview's bottom. This ensures the component sits correctly above the tab bar and respects the home indicator.
 - **Seamless Navigation**: Integrates the `Hero` library to create fluid, shared element transitions (image and title) between product lists and detail views, elevating the perceived quality with minimal code footprint.
 - **SnapKit:** DSL for programmatic constraints.
 - **Unified Checkout:** The Cart and Review Order screens are unified into a single `ReviewOrderViewController` using `UITableView`.
@@ -58,6 +60,8 @@ We use **SwiftData** for order-grade local persistence.
   - Async fetching helpers (e.g., `performFetchHome`) are marked `nonisolated` to resolve actor isolation warnings.
 - **Type Safety**: Models use specific names like `UserData` and `CatalogCategory` to avoid global naming collisions.
 - **Session Management**: Explicit `logout()` triggers local cache clearing (Keychain + Memory) and notifies the backend to invalidate push tokens.
+  - **Token Duration:** Firebase ID Tokens are valid for **1 hour**.
+  - **Auto-Refresh:** The SDK/NetworkManager should handle refresh token logic to maintain a seamless session beyond the 1-hour window.
 
 ## 🔐 Environment & Secrets
 1. **Firebase (`GoogleService-Info.plist`):** Automatically managed by the Firebase SDK.

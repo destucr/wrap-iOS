@@ -1,6 +1,6 @@
 # Wrap UI & UX Documentation
-Version: 1.4
-Status: Active (Core Animation & Visual Polish)
+Version: 1.5
+Status: Active (Tab Bar Visibility & Safe Area Fixes)
 
 ## 🏛 1. Information Architecture (IA)
 
@@ -19,6 +19,7 @@ Status: Active (Core Animation & Visual Polish)
     - **Section 0**: Delivery Address card (`AddressCell`).
     - **Section 1**: Order Items (`ReviewItemCell`).
     - **Section 2**: Pricing Breakdown (`PricingCell`).
+- **Sticky Bottom Bar**: Contains the "Total Pembayaran" and the **"Bayar Sekarang"** button. It is pinned to the **Safe Area Bottom** to ensure it sits correctly above the Tab Bar and respects the Home Indicator on notch/dynamic island devices.
 - **Tab Bar Integration**: Tab Bar Title is **"Cart"**, but the internally displayed navigation title is **"Review Order"**.
 - **Native Gestures**: Supports standard iOS **Swipe-to-Delete** for order items.
 
@@ -63,7 +64,7 @@ Status: Active (Core Animation & Visual Polish)
 
 ### 2.3 Checkout & Fulfillment
 1. **View Cart**: User taps the **"Cart"** tab.
-2. **Review**: User sees their items, address, and pricing immediately.
+2. **Review**: User sees their items, address, and pricing immediately. UI updates are prioritized locally for responsiveness.
 3. **Edit**: 
     - User adjusts quantity using the stepper.
     - User **swipes left** on an item to delete it.
@@ -117,6 +118,9 @@ Status: Active (Core Animation & Visual Polish)
 | **2** | **Order History** | `clock.arrow.circlepath` | Past and active orders. |
 | **3** | **Profile** | `person.circle` | Settings and identity. |
 
+**iOS 15+ Enforcement:** The tab bar uses `UITabBarAppearance` with `configureWithOpaqueBackground()` to ensure consistent visibility regardless of content scroll position.
+
 ### 4.5 Visual Padding Mandates
 - **Images**: All cell images must have at least `4pt` internal inset.
 - **Stack Spacing**: Minimum `8pt` between vertical labels.
+- **Safe Area**: All sticky components must anchor to `view.safeAreaLayoutGuide` to prevent overlap with hardware UI (Tab Bar/Home Indicator).

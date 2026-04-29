@@ -108,7 +108,8 @@ class OrderHistoryViewController: UIViewController {
         tableView.register(OrderCell.self, forCellReuseIdentifier: OrderCell.identifier)
         
         tableView.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
+            make.top.leading.trailing.equalToSuperview()
+            make.bottom.equalTo(view.safeAreaLayoutGuide)
         }
         
         activityIndicator.snp.makeConstraints { make in

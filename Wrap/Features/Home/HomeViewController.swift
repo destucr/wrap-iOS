@@ -3,31 +3,95 @@ import Kingfisher
 import SnapKit
 import Hero
 
+@MainActor
 final class HomeViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
     
-    private enum SectionType: String {
-        case banners
-        case categories
-        case standard
-        case flash_sale
-        case personalized
+    private enum Section: Hashable {
+        case banners([PromoBanner])
+        case categories([CatalogCategory])
+        case products(title: String, items: [Product])
+        
+        func hash(into hasher: inout Hasher) {
+            switch self {
+            case .banners: hasher.combine(0)
+            case .categories: hasher.combine(1)
+            case .products(let title, _): hasher.combine(title)
+            }
+        }
+        
+        static func == (lhs: Section, rhs: Section) -> Bool {
+            switch (lhs, rhs) {
+            case (.banners, .banners): return true
+            case (.categories, .categories): return true
+            case (.products(let lTitle, _), .products(let rTitle, _)): return lTitle == rTitle
+            default: return false
+            }
+        }
     }
     
     private var feed: HomeFeedData?
-    private var user: UserData?
+    private var sections: [Section] = []
     
-    private let headerView = HomeHeaderView()
+    private let addressLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Mengirim ke: Sedang memuat..."
+        label.textColor = Brand.Text.primary
+        label.font = .systemFont(ofSize: 13, weight: .semibold)
+        return label
+    }()
+    
+    private let addressBar: UIView = {
+        let view = UIView()
+        let icon = UIImageView(image: UIImage(systemName: "mappin.circle.fill"))
+        icon.tintColor = Brand.primary
+        view.addSubview(icon)
+        icon.snp.makeConstraints { make in
+            make.leading.equalToSuperview().offset(16)
+            make.centerY.equalToSuperview()
+            make.size.equalTo(18)
+        }
+        return view
+    }()
+    
+    private let searchBar: UIView = {
+        let view = UIView()
+        view.backgroundColor = UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)
+        view.layer.cornerRadius = 12
+        
+        let icon = UIImageView(image: UIImage(systemName: "magnifyingglass"))
+        icon.tintColor = .systemGray
+        view.addSubview(icon)
+        icon.snp.makeConstraints { make in
+            make.leading.equalToSuperview().offset(12)
+            make.centerY.equalToSuperview()
+            make.size.equalTo(18)
+        }
+        
+        let label = UILabel()
+        label.text = "Cari produk favoritmu..."
+        label.textColor = .systemGray
+        label.font = .systemFont(ofSize: 15)
+        view.addSubview(label)
+        label.snp.makeConstraints { make in
+            make.leading.equalTo(icon.snp.trailing).offset(8)
+            make.centerY.equalToSuperview()
+        }
+        
+        return view
+    }()
     
     private lazy var collectionView: UICollectionView = {
         let layout = createLayout()
         let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        cv.backgroundColor = .systemBackground
+        cv.backgroundColor = .white
         cv.register(ProductCardView.self, forCellWithReuseIdentifier: ProductCardView.identifier)
         cv.register(BannerCell.self, forCellWithReuseIdentifier: BannerCell.identifier)
         cv.register(CategoryCell.self, forCellWithReuseIdentifier: CategoryCell.identifier)
         cv.register(SectionHeaderView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: SectionHeaderView.identifier)
+        cv.dataSource = self
+        cv.delegate = self
         return cv
     }()
     
@@ -35,42 +99,74 @@ final class HomeViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         fetchData()
+        fetchProfile()
+        setupObservers()
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(true, animated: animated)
+        collectionView.reloadData()
+    }
+    
+    private func setupObservers() {
+        NotificationCenter.default.addObserver(self, selector: #selector(cartDidUpdate), name: .cartUpdated, object: nil)
+    }
+    
+    @objc private func cartDidUpdate() {
+        collectionView.reloadData()
     }
     
     private func setupUI() {
-        view.backgroundColor = .systemBackground
-        view.addSubview(headerView)
+        view.backgroundColor = .white
+        
+        view.addSubview(addressBar)
+        addressBar.addSubview(addressLabel)
+        view.addSubview(searchBar)
         view.addSubview(collectionView)
         
-        headerView.snp.makeConstraints { make in
-            make.top.equalTo(view.safeAreaLayoutGuide)
+        addressBar.snp.makeConstraints { make in
+            make.top.equalTo(view.safeAreaLayoutGuide).offset(4)
             make.leading.trailing.equalToSuperview()
+            make.height.equalTo(30)
+        }
+        
+        addressLabel.snp.makeConstraints { make in
+            make.leading.equalToSuperview().offset(40)
+            make.trailing.equalToSuperview().offset(-16)
+            make.centerY.equalToSuperview()
+        }
+        
+        searchBar.snp.makeConstraints { make in
+            make.top.equalTo(addressBar.snp.bottom).offset(8)
+            make.leading.trailing.equalToSuperview().inset(16)
+            make.height.equalTo(44)
         }
         
         collectionView.snp.makeConstraints { make in
-            make.top.equalTo(headerView.snp.bottom)
+            make.top.equalTo(searchBar.snp.bottom).offset(8)
             make.leading.trailing.bottom.equalToSuperview()
         }
-        
-        collectionView.dataSource = self
-        collectionView.delegate = self
     }
     
     private func fetchData() {
         Task {
             do {
-                let fetchedFeed = try await self.performFetchHome()
-                let fetchedUserData = try await self.performFetchProfile()
-                
+                let fetchedFeed: HomeFeedData = try await NetworkManager.shared.request(endpoint: "/catalog/home")
                 self.feed = fetchedFeed
-                self.user = fetchedUserData
                 
-                headerView.configure(with: fetchedUserData)
+                var newSections: [Section] = []
+                if !fetchedFeed.banners.isEmpty {
+                    newSections.append(.banners(fetchedFeed.banners))
+                }
+                if !fetchedFeed.categories.isEmpty {
+                    newSections.append(.categories(fetchedFeed.categories))
+                }
+                for feedSection in fetchedFeed.sections {
+                    newSections.append(.products(title: feedSection.title, items: feedSection.items))
+                }
+                
+                self.sections = newSections
                 self.collectionView.reloadData()
             } catch {
                 print("Failed to fetch home data: \(error)")
@@ -78,62 +174,61 @@ final class HomeViewController: UIViewController {
         }
     }
     
-    nonisolated private func performFetchHome() async throws -> HomeFeedData {
-        try await NetworkManager.shared.request(endpoint: "/catalog/home")
-    }
-    
-    nonisolated private func performFetchProfile() async throws -> UserData {
-        try await NetworkManager.shared.request(endpoint: "/user/profile")
+    private func fetchProfile() {
+        Task {
+            do {
+                let user: UserData = try await NetworkManager.shared.request(endpoint: "/user/profile")
+                let address = user.fullAddress ?? user.email
+                addressLabel.text = "Mengirim ke: \(address)"
+            } catch {
+                print("Failed to fetch profile: \(error)")
+            }
+        }
     }
     
     private func createLayout() -> UICollectionViewLayout {
-        return UICollectionViewCompositionalLayout { [weak self] (sectionIndex, _) -> NSCollectionLayoutSection? in
-            guard let self = self, let feed = self.feed else { return nil }
+        return UICollectionViewCompositionalLayout { [weak self] (sectionIndex, layoutEnvironment) -> NSCollectionLayoutSection? in
+            guard let self = self, sectionIndex < self.sections.count else { return nil }
+            let section = self.sections[sectionIndex]
             
-            if sectionIndex == 0 { // Banners
+            switch section {
+            case .banners:
                 let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .fractionalHeight(1)))
-                let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.92), heightDimension: .absolute(160)), subitems: [item])
+                let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.92), heightDimension: .absolute(180)), subitems: [item])
                 let section = NSCollectionLayoutSection(group: group)
                 section.orthogonalScrollingBehavior = .groupPagingCentered
+                section.contentInsets = NSDirectionalEdgeInsets(top: 16, leading: 16, bottom: 8, trailing: 16)
                 section.interGroupSpacing = 12
-                section.contentInsets = NSDirectionalEdgeInsets(top: 16, leading: 0, bottom: 16, trailing: 0)
                 return section
-            } else if sectionIndex == 1 { // Categories
-                let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.25), heightDimension: .absolute(100)))
-                let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(100)), subitems: [item])
-                let section = NSCollectionLayoutSection(group: group)
-                section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 16, trailing: 16)
-                return section
-            } else { // Dynamic Product Sections
-                let feedSection = feed.sections[sectionIndex - 2]
                 
-                if feedSection.type == "personalized" {
-                    // Horizontal Scroll for "Favorit Kamu"
-                    let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .fractionalHeight(1)))
-                    let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .absolute(160), heightDimension: .absolute(240)), subitems: [item])
-                    let section = NSCollectionLayoutSection(group: group)
-                    section.orthogonalScrollingBehavior = .continuous
-                    section.interGroupSpacing = 12
-                    section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 24, trailing: 16)
-                    
-                    let headerSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(44))
-                    let header = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: headerSize, elementKind: UICollectionView.elementKindSectionHeader, alignment: .top)
-                    section.boundarySupplementaryItems = [header]
-                    return section
-                } else {
-                    // Vertical 2-column Grid for others
-                    let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.5), heightDimension: .estimated(240)))
-                    item.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 16, trailing: 6)
-                    let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .estimated(240)), subitems: [item])
-                    let section = NSCollectionLayoutSection(group: group)
-                    section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 16, trailing: 10)
-                    
-                    let headerSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(44))
-                    let header = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: headerSize, elementKind: UICollectionView.elementKindSectionHeader, alignment: .top)
-                    section.boundarySupplementaryItems = [header]
-                    
-                    return section
-                }
+            case .categories:
+                let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .absolute(80), heightDimension: .absolute(100)))
+                let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .absolute(80), heightDimension: .absolute(100)), subitems: [item])
+                let section = NSCollectionLayoutSection(group: group)
+                section.orthogonalScrollingBehavior = .continuous
+                section.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 16, bottom: 16, trailing: 16)
+                section.interGroupSpacing = 12
+                return section
+                
+            case .products:
+                let containerWidth = layoutEnvironment.container.contentSize.width
+                let columns: CGFloat = (containerWidth / 3.0) > 100 ? 3 : 2
+                
+                let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0/columns), heightDimension: .estimated(220))
+                let item = NSCollectionLayoutItem(layoutSize: itemSize)
+                item.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 12, trailing: 6)
+                
+                let groupSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .estimated(220))
+                let group = NSCollectionLayoutGroup.horizontal(layoutSize: groupSize, subitems: [item])
+                
+                let section = NSCollectionLayoutSection(group: group)
+                section.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 10, bottom: 20, trailing: 10)
+                
+                let headerSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(40))
+                let header = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: headerSize, elementKind: UICollectionView.elementKindSectionHeader, alignment: .top)
+                section.boundarySupplementaryItems = [header]
+                
+                return section
             }
         }
     }
@@ -141,33 +236,32 @@ final class HomeViewController: UIViewController {
 
 extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelegate {
     func numberOfSections(in collectionView: UICollectionView) -> Int {
-        guard let feed = feed else { return 0 }
-        return 2 + feed.sections.count
+        return sections.count
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        guard let feed = feed else { return 0 }
-        if section == 0 { return feed.banners.count }
-        if section == 1 { return feed.categories.count }
-        return feed.sections[section - 2].items.count
+        switch sections[section] {
+        case .banners(let banners): return banners.count
+        case .categories(let categories): return categories.count
+        case .products(_, let items): return items.count
+        }
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        guard let feed = feed else { return UICollectionViewCell() }
+        let section = sections[indexPath.section]
         
-        if indexPath.section == 0 {
+        switch section {
+        case .banners(let banners):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
-            cell.configure(with: feed.banners[indexPath.item])
+            cell.configure(with: banners[indexPath.item])
             return cell
-        } else if indexPath.section == 1 {
+        case .categories(let categories):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
-            cell.configure(with: feed.categories[indexPath.item])
+            cell.configure(with: categories[indexPath.item])
             return cell
-        } else {
-            let sectionData = feed.sections[indexPath.section - 2]
+        case .products(_, let items):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCardView.identifier, for: indexPath) as! ProductCardView
-            cell.configure(with: sectionData.items[indexPath.item])
-            cell.delegate = self
+            cell.configure(with: items[indexPath.item])
             return cell
         }
     }
@@ -175,8 +269,8 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
     func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
         if kind == UICollectionView.elementKindSectionHeader {
             let header = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: SectionHeaderView.identifier, for: indexPath) as! SectionHeaderView
-            if indexPath.section >= 2 {
-                header.titleLabel.text = feed?.sections[indexPath.section - 2].title
+            if case .products(let title, _) = sections[indexPath.section] {
+                header.configure(with: title)
             }
             return header
         }
@@ -184,98 +278,24 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        guard let feed = feed else { return }
-        
-        if indexPath.section == 1 {
-            let category = feed.categories[indexPath.item]
-            coordinator?.showCatalogCategory(category: category)
-        } else if indexPath.section >= 2 {
-            let product = feed.sections[indexPath.section - 2].items[indexPath.item]
-            coordinator?.showProductDetail(productId: product.id)
+        let section = sections[indexPath.section]
+        switch section {
+        case .categories(let categories):
+            coordinator?.showCatalogCategory(category: categories[indexPath.item])
+        case .products(_, let items):
+            coordinator?.showProductDetail(productId: items[indexPath.item].id)
+        default:
+            break
         }
     }
 }
 
-extension HomeViewController: ProductCardDelegate {
-    func productCard(_ cell: ProductCardView, didUpdateQuantity quantity: Int, for product: Product) {
-        guard let firstVariant = product.variants?.first else { return }
-        let price = firstVariant.priceOverride ?? product.basePrice
-        
-        if quantity > 0 && CartManager.shared.items.first(where: { $0.variantId == firstVariant.id }) == nil {
-            CartManager.shared.add(variantId: firstVariant.id, name: product.name, price: price, quantity: quantity)
-        } else {
-            CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: quantity)
-        }
-    }
-}
-
-// MARK: - Custom Views (Header, Cells, etc.)
-
-final class HomeHeaderView: UIView {
-    private let nameLabel: UILabel = {
-        let label = UILabel()
-        label.font = Brand.Typography.subheader(size: 14)
-        label.textColor = .secondaryLabel
-        label.text = "Halo,"
-        return label
-    }()
-    
-    private let addressLabel: UILabel = {
-        let label = UILabel()
-        label.font = Brand.Typography.subheader(size: 16)
-        label.textColor = .black
-        label.numberOfLines = 1
-        label.text = "Atur alamat..."
-        return label
-    }()
-    
-    private let searchBar: UISearchBar = {
-        let sb = UISearchBar()
-        sb.placeholder = "Cari Indomie, Telur, atau Susu..."
-        sb.searchBarStyle = .minimal
-        return sb
-    }()
-    
-    init() {
-        super.init(frame: .zero)
-        setupUI()
-    }
-    
-    required init?(coder: NSCoder) { fatalError() }
-    
-    private func setupUI() {
-        backgroundColor = .systemBackground
-        addSubview(nameLabel)
-        addSubview(addressLabel)
-        addSubview(searchBar)
-        
-        nameLabel.snp.makeConstraints { make in
-            make.top.equalToSuperview().offset(8)
-            make.leading.equalToSuperview().offset(20)
-        }
-        
-        addressLabel.snp.makeConstraints { make in
-            make.top.equalTo(nameLabel.snp.bottom).offset(2)
-            make.leading.equalToSuperview().offset(20)
-            make.trailing.equalToSuperview().offset(-20)
-        }
-        
-        searchBar.snp.makeConstraints { make in
-            make.top.equalTo(addressLabel.snp.bottom).offset(8)
-            make.leading.trailing.equalToSuperview().inset(12)
-            make.bottom.equalToSuperview().offset(-8)
-        }
-    }
-    
-    func configure(with user: UserData) {
-        nameLabel.text = "Hello, \(user.fullName)"
-        addressLabel.text = user.fullAddress ?? "Set your address"
-    }
-}
+// MARK: - Banner Cell
 
 final class BannerCell: UICollectionViewCell {
     static let identifier = "BannerCell"
     private let imageView = UIImageView()
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
         contentView.addSubview(imageView)
@@ -283,49 +303,94 @@ final class BannerCell: UICollectionViewCell {
         imageView.clipsToBounds = true
         imageView.roundCorners(radius: 12)
         imageView.snp.makeConstraints { make in
-            make.edges.equalToSuperview().inset(4)
+            make.edges.equalToSuperview()
         }
     }
+    
     required init?(coder: NSCoder) { fatalError() }
+    
     func configure(with banner: PromoBanner) {
-        if let url = URL(string: banner.imageUrl) { imageView.kf.setImage(with: url) }
+        if let url = URL(string: banner.imageUrl) {
+            imageView.kf.setImage(with: url, placeholder: UIImage(named: "banner_placeholder"))
+        }
     }
 }
+
+// MARK: - Category Cell
 
 final class CategoryCell: UICollectionViewCell {
     static let identifier = "CategoryCell"
-    private let imageView = UIImageView()
-    private let label = UILabel()
+    private let iconContainer = UIView()
+    private let iconView = UIImageView()
+    private let titleLabel = UILabel()
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
-        let stack = UIStackView(arrangedSubviews: [imageView, label])
-        stack.axis = .vertical; stack.alignment = .center; stack.spacing = 8
-        contentView.addSubview(stack)
-        stack.snp.makeConstraints { make in make.edges.equalToSuperview().inset(4) }
-        imageView.snp.makeConstraints { make in make.size.equalTo(52) }
-        imageView.backgroundColor = Brand.secondary; imageView.roundCorners(radius: 26)
-        label.font = Brand.Typography.body(size: 11); label.textAlignment = .center; label.numberOfLines = 2
+        setupUI()
     }
+    
     required init?(coder: NSCoder) { fatalError() }
+    
+    private func setupUI() {
+        contentView.addSubview(iconContainer)
+        iconContainer.addSubview(iconView)
+        contentView.addSubview(titleLabel)
+        
+        iconContainer.backgroundColor = Brand.secondary
+        iconContainer.layer.cornerRadius = 30
+        iconContainer.clipsToBounds = true
+        
+        iconView.contentMode = .scaleAspectFill
+        
+        titleLabel.font = .systemFont(ofSize: 12, weight: .medium)
+        titleLabel.textColor = Brand.Text.primary
+        titleLabel.textAlignment = .center
+        
+        iconContainer.snp.makeConstraints { make in
+            make.top.centerX.equalToSuperview()
+            make.size.equalTo(60)
+        }
+        
+        iconView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+        
+        titleLabel.snp.makeConstraints { make in
+            make.top.equalTo(iconContainer.snp.bottom).offset(8)
+            make.leading.trailing.bottom.equalToSuperview()
+        }
+    }
+    
     func configure(with category: CatalogCategory) {
-        label.text = category.name
+        titleLabel.text = category.name
         if let iconUrl = category.iconUrl, let url = URL(string: iconUrl) {
-            imageView.kf.setImage(with: url)
-            imageView.contentMode = .scaleAspectFill
+            iconView.kf.setImage(with: url)
+        } else {
+            iconView.image = nil
         }
     }
 }
 
+// MARK: - Section Header View
+
 final class SectionHeaderView: UICollectionReusableView {
     static let identifier = "SectionHeaderView"
-    let titleLabel = UILabel()
+    private let titleLabel = UILabel()
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
         addSubview(titleLabel)
         titleLabel.font = Brand.Typography.subheader(size: 18)
+        titleLabel.textColor = Brand.Text.primary
         titleLabel.snp.makeConstraints { make in
-            make.leading.trailing.equalToSuperview().inset(4); make.centerY.equalToSuperview()
+            make.leading.trailing.equalToSuperview().inset(16)
+            make.centerY.equalToSuperview()
         }
     }
+    
     required init?(coder: NSCoder) { fatalError() }
+    
+    func configure(with title: String) {
+        titleLabel.text = title
+    }
 }

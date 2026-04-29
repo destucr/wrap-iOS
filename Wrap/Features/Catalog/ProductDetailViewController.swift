@@ -3,6 +3,7 @@ import SnapKit
 import Kingfisher
 import Hero
 
+@MainActor
 final class ProductDetailViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
@@ -230,7 +231,7 @@ final class ProductDetailViewController: UIViewController {
     }
     
     private func configureUI(with product: Product) {
-        title = product.name
+        self.title = product.name 
         nameLabel.text = product.name
         priceLabel.text = product.basePrice.formattedIDR
         descriptionLabel.text = product.description ?? "Tidak ada deskripsi."
@@ -286,13 +287,11 @@ extension ProductDetailViewController: InteractiveStepperDelegate {
         guard let product = product, let firstVariant = product.variants?.first else { return }
         let price = firstVariant.priceOverride ?? product.basePrice
         
-        // Sync with CartManager
-        CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: value)
-        
-        if value > 0 && CartManager.shared.items.first(where: { $0.variantId == firstVariant.id }) == nil {
-             CartManager.shared.add(variantId: firstVariant.id, name: product.name, price: price, quantity: value)
-        } else {
-             CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: value)
-        }
+        CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: value, name: product.name, price: price)
     }
 }
+
+#Preview {
+    ProductDetailViewController(productId: UUID())
+}
+

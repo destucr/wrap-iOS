@@ -1,15 +1,11 @@
 import UIKit
 import Kingfisher
 import Hero
-
-protocol ProductCardDelegate: AnyObject {
-    func productCard(_ cell: ProductCardView, didUpdateQuantity quantity: Int, for product: Product)
-}
+import SnapKit
 
 final class ProductCardView: UICollectionViewCell {
     static let identifier = "ProductCardView"
     
-    weak var delegate: ProductCardDelegate?
     private var product: Product?
     
     let imageView: UIImageView = {
@@ -23,23 +19,27 @@ final class ProductCardView: UICollectionViewCell {
 
     let nameLabel: UILabel = {
         let label = UILabel()
-        label.font = Brand.Typography.subheader(size: 16)
-        label.textColor = .black
+        label.font = Brand.Typography.productName()
+        label.textColor = Brand.Text.primary
         label.numberOfLines = 2
+        label.lineBreakMode = .byTruncatingTail
         return label
     }()
     
     private let priceLabel: UILabel = {
         let label = UILabel()
-        label.font = Brand.Typography.body(size: 14).withWeight(.bold)
+        label.font = Brand.Typography.price()
         label.textColor = Brand.primary
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
         return label
     }()
     
     private let unitLabel: UILabel = {
         let label = UILabel()
-        label.font = Brand.Typography.body(size: 12)
-        label.textColor = .gray
+        label.font = Brand.Typography.unitLabel()
+        label.textColor = Brand.Text.secondary
+        label.lineBreakMode = .byTruncatingTail
         return label
     }()
     
@@ -52,6 +52,14 @@ final class ProductCardView: UICollectionViewCell {
         label.roundCorners(radius: 4)
         label.isHidden = true
         return label
+    }()
+    
+    private let priceStack: UIStackView = {
+        let stack = UIStackView()
+        stack.axis = .horizontal
+        stack.spacing = 2
+        stack.alignment = .center
+        return stack
     }()
     
     private let stepper = InteractiveStepper()
@@ -67,52 +75,55 @@ final class ProductCardView: UICollectionViewCell {
     
     private func setupUI() {
         contentView.backgroundColor = .white
-        contentView.roundCorners(radius: 12)
-        contentView.applyShadow()
+        contentView.layer.cornerRadius = 16
+        contentView.layer.masksToBounds = true
+        
+        // Add shadow to the cell layer (not contentView)
+        self.backgroundColor = .clear
+        self.layer.masksToBounds = false
+        self.applyCardShadow()
         
         contentView.addSubview(imageView)
         contentView.addSubview(nameLabel)
-        contentView.addSubview(priceLabel)
-        contentView.addSubview(unitLabel)
+        contentView.addSubview(priceStack)
+        priceStack.addArrangedSubview(priceLabel)
+        priceStack.addArrangedSubview(unitLabel)
         contentView.addSubview(scarcityLabel)
         contentView.addSubview(stepper)
         
         stepper.delegate = self
         
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        priceLabel.translatesAutoresizingMaskIntoConstraints = false
-        unitLabel.translatesAutoresizingMaskIntoConstraints = false
-        scarcityLabel.translatesAutoresizingMaskIntoConstraints = false
-        stepper.translatesAutoresizingMaskIntoConstraints = false
+        imageView.snp.makeConstraints { make in
+            make.top.leading.trailing.equalToSuperview().inset(8)
+            make.height.equalTo(imageView.snp.width)
+        }
         
-        NSLayoutConstraint.activate([
-            imageView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
-            imageView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
-            imageView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
-            imageView.heightAnchor.constraint(equalTo: imageView.widthAnchor),
-            
-            scarcityLabel.topAnchor.constraint(equalTo: imageView.topAnchor, constant: 8),
-            scarcityLabel.leadingAnchor.constraint(equalTo: imageView.leadingAnchor, constant: 8),
-            scarcityLabel.heightAnchor.constraint(equalToConstant: 18),
-            scarcityLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 60),
-            
-            nameLabel.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: 8),
-            nameLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
-            nameLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
-            
-            priceLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 4),
-            priceLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
-            
-            unitLabel.centerYAnchor.constraint(equalTo: priceLabel.centerYAnchor),
-            unitLabel.leadingAnchor.constraint(equalTo: priceLabel.trailingAnchor, constant: 4),
-            
-            stepper.topAnchor.constraint(equalTo: priceLabel.bottomAnchor, constant: 8),
-            stepper.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 8),
-            stepper.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
-            stepper.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
-            stepper.heightAnchor.constraint(equalToConstant: 32)
-        ])
+        scarcityLabel.snp.makeConstraints { make in
+            make.top.equalTo(imageView.snp.top).offset(8)
+            make.leading.equalTo(imageView.snp.leading).offset(8)
+            make.height.equalTo(18)
+            make.width.greaterThanOrEqualTo(60)
+        }
+        
+        nameLabel.snp.makeConstraints { make in
+            make.top.equalTo(imageView.snp.bottom).offset(8)
+            make.leading.trailing.equalToSuperview().inset(10)
+        }
+        
+        priceStack.snp.makeConstraints { make in
+            make.top.equalTo(nameLabel.snp.bottom).offset(4)
+            make.leading.equalToSuperview().offset(10)
+            make.trailing.lessThanOrEqualToSuperview().offset(-10)
+        }
+        
+        stepper.snp.makeConstraints { make in
+          make.centerX.equalToSuperview() // Centered horizontally
+          make.bottom.equalToSuperview().inset(10) // Fixed to bottom
+          make.width.equalTo(100)
+          make.height.equalTo(32)
+          // This ensures the stepper doesn't overlap the price if the text is long
+          make.top.greaterThanOrEqualTo(priceStack.snp.bottom).offset(8)
+        }
     }
     
     func configure(with product: Product) {
@@ -134,8 +145,7 @@ final class ProductCardView: UICollectionViewCell {
             } else {
                 scarcityLabel.isHidden = true
             }
-            
-            // Sync stepper with cart
+            // Sync with cart state
             let currentQty = CartManager.shared.quantity(for: firstVariant.id)
             stepper.setValue(currentQty)
         } else {
@@ -144,16 +154,46 @@ final class ProductCardView: UICollectionViewCell {
         }
         
         if let imageUrlString = product.images?.first, let url = URL(string: imageUrlString) {
-            imageView.kf.setImage(with: url, placeholder: UIImage(systemName: "photo"))
+            imageView.kf.setImage(with: url, placeholder: UIImage(systemName: "photo", withConfiguration: UIImage.SymbolConfiguration(pointSize: 40))) { [weak self] result in
+                if case .failure = result {
+                    self?.setPlaceholder()
+                }
+            }
         } else {
-            imageView.image = UIImage(systemName: "photo")
+            setPlaceholder()
         }
+    }
+    
+    private func setPlaceholder() {
+        imageView.image = UIImage(systemName: "photo")
+        imageView.tintColor = .systemGray4
+        imageView.contentMode = .center
     }
 }
 
 extension ProductCardView: InteractiveStepperDelegate {
     func stepper(_ stepper: InteractiveStepper, didUpdateValue value: Int) {
-        guard let product = product else { return }
-        delegate?.productCard(self, didUpdateQuantity: value, for: product)
+        guard let product = product,
+              let firstVariant = product.variants?.first else { return }
+
+        // 1. Convert Int price to Double for CartManager
+        let price = Double(firstVariant.priceOverride ?? product.basePrice)
+
+        // 2. Call the Manager (This triggers saveAndNotify() inside CartManager)
+        CartManager.shared.setQuantity(
+            variantId: firstVariant.id,
+            quantity: value,
+            name: product.name,
+            price: price
+        )
+
+        // 3. Optional: Add Haptic Feedback
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.prepare()
+        generator.impactOccurred()
     }
+}
+
+#Preview {
+   ProductCardView()
 }

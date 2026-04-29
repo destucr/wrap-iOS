@@ -17,7 +17,8 @@ nonisolated struct OrderResponse: Codable, Sendable {
     }
 }
 
-class CartManager {
+@MainActor
+class CartManager: Sendable {
     static let shared = CartManager()
     
     private var context: ModelContext?
@@ -31,50 +32,74 @@ class CartManager {
     
     // MARK: - Local Logic (SwiftData)
     var items: [CartItem] {
+        guard let context = context else { return [] }
+        context.processPendingChanges()
         let descriptor = FetchDescriptor<CartItem>(sortBy: [SortDescriptor(\.addedDate)])
-        return (try? context?.fetch(descriptor)) ?? []
+        return (try? context.fetch(descriptor)) ?? []
     }
     
     func add(variantId: UUID, name: String, price: Double, quantity: Int = 1) {
+        guard let context = context else { return }
+        context.processPendingChanges()
+        
         let descriptor = FetchDescriptor<CartItem>(predicate: #Predicate { $0.variantId == variantId })
         
-        if let existingItem = try? context?.fetch(descriptor).first {
+        if let existingItem = try? context.fetch(descriptor).first {
             existingItem.quantity += quantity
         } else {
             let newItem = CartItem(variantId: variantId, name: name, price: price, quantity: quantity)
-            context?.insert(newItem)
+            context.insert(newItem)
         }
         
-        try? context?.save()
-        NotificationCenter.default.post(name: .cartUpdated, object: nil)
+        saveAndNotify()
     }
 
-    func setQuantity(variantId: UUID, quantity: Int) {
+    func setQuantity(variantId: UUID, quantity: Int, name: String? = nil, price: Double? = nil) {
+        guard let context = context else { return }
+        context.processPendingChanges()
+        
         let descriptor = FetchDescriptor<CartItem>(predicate: #Predicate { $0.variantId == variantId })
-        if let existingItem = try? context?.fetch(descriptor).first {
+        
+        if let existingItem = try? context.fetch(descriptor).first {
             if quantity <= 0 {
-                context?.delete(existingItem)
+                context.delete(existingItem)
             } else {
                 existingItem.quantity = quantity
             }
-            try? context?.save()
+        } else if quantity > 0, let name = name, let price = price {
+            let newItem = CartItem(variantId: variantId, name: name, price: price, quantity: quantity)
+            context.insert(newItem)
+        }
+        
+        saveAndNotify()
+    }
+    
+    private func saveAndNotify() {
+        guard let context = context else { return }
+        do {
+            try context.save()
+            // Force process changes to ensure other queries see it immediately
+            context.processPendingChanges()
             NotificationCenter.default.post(name: .cartUpdated, object: nil)
+        } catch {
+            print("Failed to save cart: \(error)")
         }
     }
     
     func remove(variantId: UUID) {
+        guard let context = context else { return }
+        context.processPendingChanges()
         let descriptor = FetchDescriptor<CartItem>(predicate: #Predicate { $0.variantId == variantId })
-        if let existingItem = try? context?.fetch(descriptor).first {
-            context?.delete(existingItem)
-            try? context?.save()
-            NotificationCenter.default.post(name: .cartUpdated, object: nil)
+        if let existingItem = try? context.fetch(descriptor).first {
+            context.delete(existingItem)
+            saveAndNotify()
         }
     }
     
     func clear() {
-        try? context?.delete(model: CartItem.self)
-        try? context?.save()
-        NotificationCenter.default.post(name: .cartUpdated, object: nil)
+        guard let context = context else { return }
+        try? context.delete(model: CartItem.self)
+        saveAndNotify()
     }
     
     var totalAmount: Double {
@@ -86,8 +111,10 @@ class CartManager {
     }
 
     func quantity(for variantId: UUID) -> Int {
+        guard let context = context else { return 0 }
+        context.processPendingChanges()
         let descriptor = FetchDescriptor<CartItem>(predicate: #Predicate { $0.variantId == variantId })
-        return (try? context?.fetch(descriptor).first)?.quantity ?? 0
+        return (try? context.fetch(descriptor).first)?.quantity ?? 0
     }
     
     // MARK: - Sync Logic

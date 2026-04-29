@@ -121,6 +121,7 @@ extension ProductCell: InteractiveStepperDelegate {
     }
 }
 
+@MainActor
 class CatalogViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
@@ -167,6 +168,7 @@ class CatalogViewController: UIViewController {
             cartTab.badgeValue = count > 0 ? "\(count)" : nil
             cartTab.badgeColor = Brand.primary
         }
+        tableView.reloadData()
     }
     
     private func setupUI() {
@@ -238,11 +240,7 @@ extension CatalogViewController: ProductCellDelegate {
         guard let firstVariant = product.variants?.first else { return }
         let price = firstVariant.priceOverride ?? product.basePrice
         
-        if quantity > 0 && CartManager.shared.items.first(where: { $0.variantId == firstVariant.id }) == nil {
-            CartManager.shared.add(variantId: firstVariant.id, name: product.name, price: price, quantity: quantity)
-        } else {
-            CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: quantity)
-        }
+        CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: quantity, name: product.name, price: price)
     }
 }
 

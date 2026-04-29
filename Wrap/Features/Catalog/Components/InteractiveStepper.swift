@@ -135,7 +135,11 @@ final class InteractiveStepper: UIView {
     }
     
     func setValue(_ newValue: Int) {
-        self.value = newValue
+        if self.value == newValue {
+            updateUI()
+        } else {
+            self.value = newValue
+        }
     }
 }
 
@@ -143,4 +147,8 @@ extension UIFont {
     func withWeight(_ weight: UIFont.Weight) -> UIFont {
         return UIFont.systemFont(ofSize: pointSize, weight: weight)
     }
+}
+
+#Preview {
+    InteractiveStepper()
 }
