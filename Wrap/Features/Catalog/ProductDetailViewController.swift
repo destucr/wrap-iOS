@@ -220,7 +220,7 @@ final class ProductDetailViewController: UIViewController {
         activityIndicator.startAnimating()
         Task {
             do {
-                let fetchedProduct: Product = try await NetworkManager.shared.request(endpoint: "/catalog/detail/\(productId.uuidString.lowercased())")
+                let fetchedProduct = try await CatalogService.shared.fetchProductDetail(id: productId)
                 self.product = fetchedProduct
                 self.configureUI(with: fetchedProduct)
                 activityIndicator.stopAnimating()

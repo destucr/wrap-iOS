@@ -15,17 +15,7 @@ class AuthManager {
     private init() {}
 
     func login(email: String, password: String) async throws -> AuthResponse {
-        let body: [String: String] = [
-            "email": email,
-            "password": password
-        ]
-
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else {
-            throw NetworkError.decodingError
-        }
-
-        // request is nonisolated (background), but returns a Sendable AuthResponse
-        let response: AuthResponse = try await NetworkManager.shared.request(endpoint: "/auth/login", method: "POST", body: jsonData)
+        let response = try await AuthService.shared.login(email: email, password: password)
 
         // Await needed because NetworkManager is @MainActor
         NetworkManager.shared.setAuthToken(response.token)
@@ -41,14 +31,12 @@ class AuthManager {
     func googleLogin(idToken: String) async throws {
         NetworkManager.shared.setAuthToken(idToken)
 
-        var body: [String: String] = [:]
         if let fcmToken = Messaging.messaging().fcmToken {
-            body["fcm_token"] = fcmToken
+            try await UserService.shared.syncUser(fcmToken: fcmToken)
+            // Fetch profile to get biometrics status after sync
+            let user = try await UserService.shared.fetchProfile()
+            self.isBiometricsEnabled = user.biometricsEnabled
         }
-
-        let jsonData = try? JSONSerialization.data(withJSONObject: body)
-        let user: UserData = try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: jsonData)
-        self.isBiometricsEnabled = user.biometricsEnabled
     }
 
     func saveCredentials(email: String, password: String) {
@@ -71,10 +59,6 @@ class AuthManager {
     func syncFCMToken(_ fcmToken: String) async throws {
         // Await check for @MainActor NetworkManager property
         guard NetworkManager.shared.hasValidToken() else { return }
-
-        let body = ["fcm_token": fcmToken]
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else { return }
-
-        let _: UserSyncResponse = try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: jsonData)
+        try await UserService.shared.syncUser(fcmToken: fcmToken)
     }
 }

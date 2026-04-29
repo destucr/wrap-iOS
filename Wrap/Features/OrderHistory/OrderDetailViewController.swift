@@ -53,7 +53,7 @@ final class OrderDetailViewController: UIViewController {
         activityIndicator.startAnimating()
         Task {
             do {
-                let resp: OrderDetailResponse = try await NetworkManager.shared.request(endpoint: "/user/orders/\(orderId.uuidString.lowercased())")
+                let resp = try await UserService.shared.fetchOrderDetail(id: orderId)
                 self.orderDetail = resp
                 activityIndicator.stopAnimating()
                 self.tableView.reloadData()
@@ -67,9 +67,7 @@ final class OrderDetailViewController: UIViewController {
     private func submitRating(rating: Int, comment: String) {
         Task {
             do {
-                let body: [String: Any] = ["rating": rating, "comment": comment]
-                let jsonData = try JSONSerialization.data(withJSONObject: body)
-                let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/user/orders/\(orderId.uuidString.lowercased())/rate", method: "POST", body: jsonData)
+                try await UserService.shared.rateOrder(id: orderId, rating: rating, comment: comment)
                 
                 let alert = UIAlertController(title: "Berhasil", message: "Terima kasih atas ulasan Anda!", preferredStyle: .alert)
                 alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in

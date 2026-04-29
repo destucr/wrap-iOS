@@ -97,9 +97,7 @@ class SearchViewController: UIViewController {
         
         searchTask = Task {
             do {
-                let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-                let endpoint = "/catalog/search?q=\(encodedQuery)"
-                let fetchedResults: [Product] = try await NetworkManager.shared.request(endpoint: endpoint)
+                let fetchedResults = try await CatalogService.shared.searchProducts(query: query)
                 
                 guard !Task.isCancelled else { return }
                 

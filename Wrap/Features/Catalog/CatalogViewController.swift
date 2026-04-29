@@ -198,12 +198,7 @@ class CatalogViewController: UIViewController {
         activityIndicator.startAnimating()
         Task {
             do {
-                var endpoint = "/catalog/products"
-                if let categoryId = category?.id {
-                    endpoint += "?category_id=\(categoryId.uuidString.lowercased())"
-                }
-                
-                let fetchedProducts: [Product] = try await NetworkManager.shared.request(endpoint: endpoint)
+                let fetchedProducts = try await CatalogService.shared.fetchProducts(categoryId: category?.id)
                 activityIndicator.stopAnimating()
                 self.products = fetchedProducts
                 self.tableView.reloadData()

@@ -121,7 +121,7 @@ class OrderHistoryViewController: UIViewController {
         activityIndicator.startAnimating()
         Task {
             do {
-                let fetchedOrders: [Order] = try await NetworkManager.shared.request(endpoint: "/user/orders")
+                let fetchedOrders = try await UserService.shared.fetchOrderHistory()
                 activityIndicator.stopAnimating()
                 self.orders = fetchedOrders.sorted(by: { $0.createdAt > $1.createdAt })
                 self.tableView.reloadData()

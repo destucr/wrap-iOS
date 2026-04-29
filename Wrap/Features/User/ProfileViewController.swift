@@ -102,7 +102,7 @@ final class ProfileViewController: UIViewController {
     private func fetchProfile() {
         Task {
             do {
-                let user: UserData = try await NetworkManager.shared.request(endpoint: "/user/profile")
+                let user = try await UserService.shared.fetchProfile()
                 nameLabel.text = user.fullName
                 addressLabel.text = user.email // Fallback to email if address is nil
                 
@@ -123,9 +123,7 @@ final class ProfileViewController: UIViewController {
         
         Task {
             do {
-                let body = ["biometrics_enabled": isEnabled]
-                let jsonData = try JSONSerialization.data(withJSONObject: body)
-                let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/user/settings", method: "PUT", body: jsonData)
+                try await UserService.shared.updateSettings(biometricsEnabled: isEnabled)
             } catch {
                 print("Failed to update biometric preference: \(error)")
             }
@@ -136,7 +134,7 @@ final class ProfileViewController: UIViewController {
         let alert = UIAlertController(title: "Logout", message: "Apakah Anda yakin ingin keluar?", preferredStyle: .actionSheet)
         alert.addAction(UIAlertAction(title: "Logout", style: .destructive, handler: { _ in
             Task {
-                _ = try? await NetworkManager.shared.request(endpoint: "/user/logout", method: "POST") as [String: String]
+                try? await UserService.shared.logout()
                 NetworkManager.shared.setAuthToken("")
                 self.coordinator?.showLogin()
             }

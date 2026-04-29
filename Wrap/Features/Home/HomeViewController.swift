@@ -160,7 +160,7 @@ final class HomeViewController: UIViewController {
     private func fetchData() {
         Task {
             do {
-                let fetchedFeed: HomeFeedData = try await NetworkManager.shared.request(endpoint: "/catalog/home")
+                let fetchedFeed = try await CatalogService.shared.fetchHome()
                 self.feed = fetchedFeed
                 
                 var newSections: [Section] = []
@@ -185,7 +185,7 @@ final class HomeViewController: UIViewController {
     private func fetchProfile() {
         Task {
             do {
-                let user: UserData = try await NetworkManager.shared.request(endpoint: "/user/profile")
+                let user = try await UserService.shared.fetchProfile()
                 let address = user.fullAddress ?? user.email
                 addressLabel.text = "Mengirim ke: \(address)"
             } catch {

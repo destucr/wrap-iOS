@@ -131,54 +131,17 @@ class CartManager: Sendable {
     func syncWithBackend() async throws {
         guard !isSyncing else { return }
         isSyncing = true
-        
         defer { isSyncing = false }
         
-        let payload: [String: Any] = [
-            "items": items.map { [
-                "variant_id": $0.variantId.uuidString.lowercased(),
-                "quantity": $0.quantity
-            ]}
-        ]
-        
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
-            throw NetworkError.decodingError
-        }
-        
-        let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/user/cart/sync", method: "POST", body: jsonData)
+        try await CheckoutService.shared.syncCart(items: items)
     }
     
     func previewCheckout(address: [String: String]? = nil) async throws -> CheckoutPreviewResponse {
-        let payload: [String: Any] = [
-            "items": items.map { [
-                "variant_id": $0.variantId.uuidString.lowercased(),
-                "quantity": $0.quantity
-            ]},
-            "address": address ?? [:]
-        ]
-        
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
-            throw NetworkError.decodingError
-        }
-        
-        return try await NetworkManager.shared.request(endpoint: "/checkout/preview", method: "POST", body: jsonData)
+        return try await CheckoutService.shared.previewCheckout(items: items, address: address)
     }
     
     func placeOrder(address: [String: String]) async throws -> OrderResponse {
-        let payload: [String: Any] = [
-            "items": items.map { [
-                "variant_id": $0.variantId.uuidString.lowercased(),
-                "quantity": $0.quantity
-            ]},
-            "address": address,
-            "idempotency_key": idempotencyKey
-        ]
-        
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
-            throw NetworkError.decodingError
-        }
-        
-        return try await NetworkManager.shared.request(endpoint: "/checkout/place", method: "POST", body: jsonData)
+        return try await CheckoutService.shared.placeOrder(items: items, address: address, idempotencyKey: idempotencyKey)
     }
 }
 
