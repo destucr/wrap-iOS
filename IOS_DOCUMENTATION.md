@@ -1,5 +1,5 @@
 # Wrap iOS Technical Documentation
-Version: 1.2 (Updated for Robust Date Decoding)
+Version: 1.3 (Updated for Core Animation & Shimmer)
 Target: iOS 17.0+
 
 ## 🏛 Architecture: Feature-Based MVC + Coordinator
@@ -33,6 +33,7 @@ We use **SwiftData** for order-grade local persistence.
 - **Concurrency:** All models (`Product`, `UserData`, etc.) conform to `Sendable` for Swift 6 safety.
 
 ## 🎨 UI & Layout
+- **Core Animation**: Utilizes native `CAGradientLayer`, `CAEmitterLayer`, and `UIViewPropertyAnimator` for high-performance visual feedback without heavy third-party dependencies (Shimmer, Cart Pop, Confetti).
 - **SnapKit:** DSL for programmatic constraints.
 - **Unified Checkout:** The Cart and Review Order screens are unified into a single `ReviewOrderViewController` using `UITableView`.
 - **Native Gestures:** `ReviewOrderViewController` implements `trailingSwipeActionsConfigurationForRowAt` for native **Swipe-to-Delete** on products.

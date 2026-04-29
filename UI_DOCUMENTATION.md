@@ -1,6 +1,6 @@
 # Wrap UI & UX Documentation
-Version: 1.3
-Status: Active (Unified Review Order & Spacing Refinement)
+Version: 1.4
+Status: Active (Core Animation & Visual Polish)
 
 ## 🏛 1. Information Architecture (IA)
 
@@ -101,12 +101,18 @@ Status: Active (Unified Review Order & Spacing Refinement)
 | **Secondary** | **System Gray 6** | `UIColor.systemGray6` | Section backgrounds. |
 | **Accent** | **System Orange** | `UIColor.systemOrange` | Scarcity labels. |
 
-### 4.2 Typography & Motion
+### 4.2 Typography & Haptics
 - **Header**: System Bold (24pt).
 - **Subheader**: System Semibold (18pt).
 - **Haptic Logic**: `Medium` for cart edits, `Success` for handover.
 
-### 4.3 Tab Bar Configuration
+### 4.3 Motion & Animation (Core Animation)
+- **Skeleton Shimmer**: `CAGradientLayer` and `CABasicAnimation` applied to dummy cells (Banners, Categories, Products) during network fetches to maintain a continuous, smooth shimmering effect.
+- **Cart Badge Pop**: `UIViewPropertyAnimator` (spring-damped) used on the `MainTabBarController` to create a tactile "pop" effect when items are added/removed from the cart.
+- **Layout Transitions**: `UIView.transition(with:duration:options:animations:completion:)` using `.transitionCrossDissolve` provides fluid crossfades when toggling between empty states and populated views (e.g., `ReviewOrderViewController`).
+- **Order Success Celebration**: `CAEmitterLayer` generates a high-performance, multi-colored confetti burst on the `OrderSuccessViewController` upon successful payment routing.
+
+### 4.4 Tab Bar Configuration
 | Index | Label | Icon | UX Context |
 | :--- | :--- | :--- | :--- |
 | **0** | **Shop** | `bag` | Home discovery feed. |
@@ -114,6 +120,6 @@ Status: Active (Unified Review Order & Spacing Refinement)
 | **2** | **Order History** | `clock.arrow.circlepath` | Past and active orders. |
 | **3** | **Profile** | `person.circle` | Settings and identity. |
 
-### 4.4 Visual Padding Mandates
+### 4.5 Visual Padding Mandates
 - **Images**: All cell images must have at least `4pt` internal inset.
 - **Stack Spacing**: Minimum `8pt` between vertical labels.
