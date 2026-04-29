@@ -117,7 +117,8 @@ class CartManager {
                 "variant_id": $0.variantId.uuidString.lowercased(),
                 "quantity": $0.quantity
             ]},
-            "address": address
+            "address": address,
+            "idempotency_key": UUID().uuidString.lowercased()
         ]
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
