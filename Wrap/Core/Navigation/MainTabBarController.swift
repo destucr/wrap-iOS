@@ -13,9 +13,10 @@ class MainTabBarController: UITabBarController {
         self.ordersCoordinator = OrdersCoordinator(navigationController: UINavigationController())
         self.profileCoordinator = ProfileCoordinator(navigationController: UINavigationController())
         
-        [homeCoordinator, checkoutCoordinator, ordersCoordinator, profileCoordinator].forEach {
-            $0.parentCoordinator = mainCoordinator
-        }
+        homeCoordinator.parentCoordinator = mainCoordinator
+        checkoutCoordinator.parentCoordinator = mainCoordinator
+        ordersCoordinator.parentCoordinator = mainCoordinator
+        profileCoordinator.parentCoordinator = mainCoordinator
         
         super.init(nibName: nil, bundle: nil)
     }

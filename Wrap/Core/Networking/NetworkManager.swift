@@ -39,6 +39,26 @@ class NetworkManager {
         method: String = "GET",
         body: Data? = nil
     ) async throws -> T {
+        do {
+            return try await performRequest(endpoint: endpoint, method: method, body: body)
+        } catch let error as NetworkError {
+            if case .unauthorized = error {
+                // Attempt refresh
+                let success = await attemptRefresh()
+                if success {
+                    // Retry once
+                    return try await performRequest(endpoint: endpoint, method: method, body: body)
+                }
+            }
+            throw error
+        }
+    }
+
+    private nonisolated func performRequest<T: Codable & Sendable>(
+        endpoint: String,
+        method: String,
+        body: Data?
+    ) async throws -> T {
         // Fetch state from MainActor before jumping to background
         let token = await MainActor.run { self.authToken }
 
@@ -46,12 +66,24 @@ class NetworkManager {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let deviceID = await MainActor.run { UIDevice.current.identifierForVendor?.uuidString ?? "unknown" }
+        request.setValue(deviceID, forHTTPHeaderField: "X-Device-ID")
+
         if let token = token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
         request.httpBody = body
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw NetworkError.serverError("Request Failed")
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.serverError("No Response")
+        }
+
+        if httpResponse.statusCode == 401 {
+            throw NetworkError.unauthorized
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw NetworkError.serverError("Request Failed with status: \(httpResponse.statusCode)")
         }
 
         let decoder = JSONDecoder()
@@ -74,5 +106,34 @@ class NetworkManager {
         }
         return try decoder.decode(T.self, from: data)
     }
+
+    private nonisolated func attemptRefresh() async -> Bool {
+        guard let refreshToken = await AuthManager.shared.getRefreshToken() else {
+            return false
+        }
+
+        do {
+            let (newToken, newRefreshToken) = try await AuthService.shared.refreshAccessToken(refreshToken: refreshToken)
+            await MainActor.run {
+                self.setAuthToken(newToken)
+                AuthManager.shared.setRefreshToken(newRefreshToken)
+            }
+            return true
+        } catch {
+            print("Token refresh failed: \(error)")
+            // If refresh fails, we might want to force logout here
+            await MainActor.run {
+                self.setAuthToken("")
+                AuthManager.shared.setRefreshToken("")
+                // Notify UI to show login if needed
+                NotificationCenter.default.post(name: .unauthorizedAccess, object: nil)
+            }
+            return false
+        }
+    }
+}
+
+extension NSNotification.Name {
+    static let unauthorizedAccess = NSNotification.Name("unauthorizedAccess")
 }
 

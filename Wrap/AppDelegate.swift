@@ -31,6 +31,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate, UNUser
         // 4. UI Library Setup
         IQKeyboardManager.shared.isEnabled = true
         IQKeyboardManager.shared.resignOnTouchOutside = true
+
+        NotificationCenter.default.addObserver(forName: .unauthorizedAccess, object: nil, queue: .main) { _ in
+            if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate {
+                sceneDelegate.coordinator?.showLogin()
+            }
+        }
+
         return true
     }
 

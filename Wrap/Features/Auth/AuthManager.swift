@@ -19,6 +19,7 @@ class AuthManager {
 
         // Await needed because NetworkManager is @MainActor
         NetworkManager.shared.setAuthToken(response.token)
+        setRefreshToken(response.refreshToken)
         self.isBiometricsEnabled = response.biometricsEnabled
 
         if let fcmToken = Messaging.messaging().fcmToken {
@@ -26,6 +27,21 @@ class AuthManager {
         }
 
         return response
+    }
+
+    func setRefreshToken(_ token: String) {
+        if let data = token.data(using: .utf8) {
+            KeychainHelper.shared.save(data, service: "com.wrap.auth", account: "refresh_token")
+        } else {
+            KeychainHelper.shared.delete(service: "com.wrap.auth", account: "refresh_token")
+        }
+    }
+
+    func getRefreshToken() -> String? {
+        if let data = KeychainHelper.shared.read(service: "com.wrap.auth", account: "refresh_token") {
+            return String(data: data, encoding: .utf8)
+        }
+        return nil
     }
 
     func googleLogin(idToken: String) async throws {

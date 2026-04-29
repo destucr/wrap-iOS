@@ -49,5 +49,17 @@ If navigation between tabs or initial login flow breaks:
 
 ---
 
-## 🛠 Phase 3: Home VC Cleanup
+## 🛠 Phase 3: Home VC Cleanup (MVVM Transition)
+**Status:** ✅ Completed  
+**Reasoning:** Extract data fetching, state management, and formatting logic from `HomeViewController` to a dedicated `HomeViewModel`. This adheres to the MVVM pattern, making the view controller responsible only for UI layout and user interaction.
+
+### Key Changes
+- **`HomeViewModel.swift`**: New ViewModel handling feed sections and profile data using `@Published` properties.
+- **`HomeViewController.swift`**: Refactored to bind to the ViewModel using Combine. Removed direct `CatalogService` and `UserService` calls.
+
+---
+
+## 🛠 Phase 4: Future Improvements
 **Status:** Planned
+- Implement robust caching in the Service Layer.
+- Add comprehensive Unit Tests for ViewModels.

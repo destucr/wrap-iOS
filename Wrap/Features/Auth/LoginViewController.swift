@@ -73,11 +73,18 @@ class LoginViewController: UIViewController {
     private let loginButton: UIButton = {
         let button = UIButton(type: .system)
         button.setTitle("Login", for: .normal)
-        // FIX: Changed from .systemBlue to Wrap Emerald per Guideline 1.1
-        button.backgroundColor = UIColor(named: "#2ECC71")
+        button.backgroundColor = Brand.primary
         button.setTitleColor(.white, for: .normal)
         button.layer.cornerRadius = 8
         button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        return button
+    }()
+
+    private let forgotPasswordButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Forgot Password?", for: .normal)
+        button.setTitleColor(Brand.primary, for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
         return button
     }()
 
@@ -108,7 +115,7 @@ class LoginViewController: UIViewController {
         loginStack.spacing = 12
         loginStack.alignment = .fill
         
-        let stackView = UIStackView(arrangedSubviews: [titleLabel, emailTextField, passwordTextField, loginStack, orLabel, googleButton])
+        let stackView = UIStackView(arrangedSubviews: [titleLabel, emailTextField, passwordTextField, forgotPasswordButton, loginStack, orLabel, googleButton])
         stackView.axis = .vertical
         stackView.spacing = 20
         
@@ -118,6 +125,10 @@ class LoginViewController: UIViewController {
         stackView.snp.makeConstraints { make in
             make.center.equalToSuperview()
             make.leading.trailing.equalToSuperview().inset(40)
+        }
+        
+        forgotPasswordButton.snp.makeConstraints { make in
+            make.height.equalTo(20)
         }
         
         loginButton.snp.makeConstraints { make in
@@ -137,8 +148,13 @@ class LoginViewController: UIViewController {
         }
         
         loginButton.addTarget(self, action: #selector(handleLogin), for: .touchUpInside)
+        forgotPasswordButton.addTarget(self, action: #selector(handleForgotPassword), for: .touchUpInside)
         googleButton.addTarget(self, action: #selector(handleGoogleSignIn), for: .touchUpInside)
         biometricButton.addTarget(self, action: #selector(handleBiometricLogin), for: .touchUpInside)
+    }
+    
+    @objc private func handleForgotPassword() {
+        coordinator?.showForgotPassword()
     }
     
     @objc private func handleGoogleSignIn() {

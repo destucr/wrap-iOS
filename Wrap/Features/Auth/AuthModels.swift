@@ -4,12 +4,16 @@ import Foundation
 // Using 'nonisolated' allows background decoding in Swift 6
 nonisolated struct AuthResponse: Codable, Sendable {
     let token: String
+    let refreshToken: String
+    let expiresIn: String
     let isEmailVerified: Bool
     let userId: String
     let biometricsEnabled: Bool
 
     enum CodingKeys: String, CodingKey {
         case token
+        case refreshToken = "refresh_token"
+        case expiresIn = "expires_in"
         case isEmailVerified = "is_email_verified"
         case userId = "user_id"
         case biometricsEnabled = "biometrics_enabled"

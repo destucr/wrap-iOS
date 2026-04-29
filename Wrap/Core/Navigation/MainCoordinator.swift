@@ -31,6 +31,12 @@ class MainCoordinator: Coordinator {
         })
     }
     
+    func showForgotPassword() {
+        let vc = ForgotPasswordViewController()
+        vc.coordinator = self
+        navigationController.pushViewController(vc, animated: true)
+    }
+    
     func showMainTab() {
         guard NetworkManager.shared.hasValidToken() else {
             showLogin()
