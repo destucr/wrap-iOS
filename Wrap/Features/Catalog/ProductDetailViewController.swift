@@ -1,6 +1,7 @@
 import UIKit
 import SnapKit
 import Kingfisher
+import Hero
 
 final class ProductDetailViewController: UIViewController {
     
@@ -234,6 +235,17 @@ final class ProductDetailViewController: UIViewController {
         priceLabel.text = product.basePrice.formattedIDR
         descriptionLabel.text = product.description ?? "Tidak ada deskripsi."
 
+        imageView.hero.id = "image_\(product.id.uuidString)"
+        nameLabel.hero.id = "title_\(product.id.uuidString)"
+        
+        self.hero.isEnabled = true
+        
+        // Add cascading animations to the rest of the elements
+        priceLabel.hero.modifiers = [.fade, .translate(y: 20)]
+        metadataStack.hero.modifiers = [.fade, .translate(y: 20)]
+        descriptionHeader.hero.modifiers = [.fade, .translate(y: 20)]
+        descriptionLabel.hero.modifiers = [.fade, .translate(y: 20)]
+        bottomBar.hero.modifiers = [.fade, .translate(y: 50)]
         
         if let imageUrlString = product.images?.first, let url = URL(string: imageUrlString) {
             imageView.kf.setImage(with: url)
@@ -283,9 +295,4 @@ extension ProductDetailViewController: InteractiveStepperDelegate {
              CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: value)
         }
     }
-}
-
-extension ProductDetailViewController: SharedElementProvider {
-    var sharedImageView: UIImageView? { return imageView }
-    var sharedTitleLabel: UILabel? { return nameLabel }
 }

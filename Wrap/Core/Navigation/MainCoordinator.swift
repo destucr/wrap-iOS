@@ -1,13 +1,13 @@
 import UIKit
+import Hero
 
 class MainCoordinator: Coordinator {
     var navigationController: UINavigationController
     var window: UIWindow?
     
-    private let sharedElementDelegate = SharedElementNavigationDelegate()
-    
     init(navigationController: UINavigationController, window: UIWindow?) {
         self.navigationController = navigationController
+        self.navigationController.hero.isEnabled = true
         self.window = window
     }
     
@@ -62,7 +62,7 @@ class MainCoordinator: Coordinator {
         let vc = CatalogViewController(category: category)
         vc.coordinator = self
         if let nav = currentNavigationController {
-            nav.delegate = sharedElementDelegate
+            nav.hero.isEnabled = true
             nav.pushViewController(vc, animated: true)
         }
     }
@@ -71,7 +71,7 @@ class MainCoordinator: Coordinator {
         let vc = ProductDetailViewController(productId: productId)
         vc.coordinator = self
         if let nav = currentNavigationController {
-            nav.delegate = sharedElementDelegate
+            nav.hero.isEnabled = true
             nav.pushViewController(vc, animated: true)
         }
     }

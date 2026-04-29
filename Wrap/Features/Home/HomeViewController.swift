@@ -1,6 +1,7 @@
 import UIKit
 import Kingfisher
 import SnapKit
+import Hero
 
 final class HomeViewController: UIViewController {
     
@@ -16,10 +17,6 @@ final class HomeViewController: UIViewController {
     
     private var feed: HomeFeedData?
     private var user: UserData?
-    
-    // Shared Element caching
-    var sharedImageView: UIImageView?
-    var sharedTitleLabel: UILabel?
     
     private let headerView = HomeHeaderView()
     
@@ -193,11 +190,6 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
             let category = feed.categories[indexPath.item]
             coordinator?.showCatalogCategory(category: category)
         } else if indexPath.section >= 2 {
-            if let cell = collectionView.cellForItem(at: indexPath) as? ProductCardView {
-                self.sharedImageView = cell.imageView
-                self.sharedTitleLabel = cell.nameLabel
-            }
-            
             let product = feed.sections[indexPath.section - 2].items[indexPath.item]
             coordinator?.showProductDetail(productId: product.id)
         }
@@ -216,8 +208,6 @@ extension HomeViewController: ProductCardDelegate {
         }
     }
 }
-
-extension HomeViewController: SharedElementProvider {}
 
 // MARK: - Custom Views (Header, Cells, etc.)
 

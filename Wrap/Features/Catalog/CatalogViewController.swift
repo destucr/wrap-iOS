@@ -1,6 +1,7 @@
 import UIKit
 import SnapKit
 import Kingfisher
+import Hero
 
 protocol ProductCellDelegate: AnyObject {
     func productCell(_ cell: ProductCell, didUpdateQuantity quantity: Int, for product: Product)
@@ -8,12 +9,12 @@ protocol ProductCellDelegate: AnyObject {
 
 class ProductCell: UITableViewCell {
     static let identifier = "ProductCell"
-    
+
     weak var delegate: ProductCellDelegate?
     private var product: Product?
-    
+
     private let containerView = UIView()
-    
+
     let productImageView: UIImageView = {
         let iv = UIImageView()
         iv.contentMode = .scaleAspectFill
@@ -22,12 +23,13 @@ class ProductCell: UITableViewCell {
         iv.backgroundColor = .secondarySystemBackground
         return iv
     }()
-    
+
     let nameLabel: UILabel = {
         let label = UILabel()
         label.font = Brand.Typography.subheader()
         return label
     }()
+
     
     private let priceLabel: UILabel = {
         let label = UILabel()
@@ -94,6 +96,9 @@ class ProductCell: UITableViewCell {
         nameLabel.text = product.name
         priceLabel.text = product.basePrice.formattedIDR
         
+        productImageView.hero.id = "image_\(product.id.uuidString)"
+        nameLabel.hero.id = "title_\(product.id.uuidString)"
+        
         if let firstVariant = product.variants?.first {
             let currentQty = CartManager.shared.quantity(for: firstVariant.id)
             stepper.setValue(currentQty)
@@ -116,14 +121,11 @@ extension ProductCell: InteractiveStepperDelegate {
     }
 }
 
-class CatalogViewController: UIViewController, SharedElementProvider {
+class CatalogViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
     private var products: [Product] = []
     private var category: CatalogCategory?
-    
-    var sharedImageView: UIImageView?
-    var sharedTitleLabel: UILabel?
     
     init(category: CatalogCategory? = nil) {
         self.category = category
@@ -226,11 +228,6 @@ extension CatalogViewController: UITableViewDelegate, UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        if let cell = tableView.cellForRow(at: indexPath) as? ProductCell {
-            self.sharedImageView = cell.productImageView
-            self.sharedTitleLabel = cell.nameLabel
-        }
-        
         let product = products[indexPath.row]
         coordinator?.showProductDetail(productId: product.id)
     }

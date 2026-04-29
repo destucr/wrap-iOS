@@ -1,5 +1,6 @@
 import UIKit
 import Kingfisher
+import Hero
 
 protocol ProductCardDelegate: AnyObject {
     func productCard(_ cell: ProductCardView, didUpdateQuantity quantity: Int, for product: Product)
@@ -19,7 +20,7 @@ final class ProductCardView: UICollectionViewCell {
         iv.roundCorners(radius: 12)
         return iv
     }()
-    
+
     let nameLabel: UILabel = {
         let label = UILabel()
         label.font = Brand.Typography.subheader(size: 16)
@@ -118,6 +119,9 @@ final class ProductCardView: UICollectionViewCell {
         self.product = product
         nameLabel.text = product.name
         priceLabel.text = product.basePrice.formattedIDR
+        
+        imageView.hero.id = "image_\(product.id.uuidString)"
+        nameLabel.hero.id = "title_\(product.id.uuidString)"
         
         let weight = product.weightLabel ?? product.unitOfMeasure
         unitLabel.text = weight != nil ? "/ \(weight!)" : ""

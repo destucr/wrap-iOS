@@ -107,7 +107,7 @@ Status: Active (Core Animation & Visual Polish)
 - **Haptic Logic**: `Medium` for cart edits, `Success` for handover.
 
 ### 4.3 Motion & Animation
-- **Seamless Navigation**: `UIViewControllerAnimatedTransitioning` is implemented to provide a native "Shared Element Transition." When a user taps a product card on the Home Dashboard or Catalog List, the product image and title label detach and fluidly animate to their final positions on the `ProductDetailViewController`. This creates a premium, unbroken contextual flow rather than a standard lateral push.
+- **Seamless Navigation**: The `Hero` library is used to provide native-feeling "Shared Element Transitions." When a user taps a product card on the Home Dashboard or Catalog List, the product image and title label detach and fluidly animate to their final positions on the `ProductDetailViewController`. Secondary elements cascade in seamlessly. This creates a premium, unbroken contextual flow.
 
 ### 4.4 Tab Bar Configuration
 | Index | Label | Icon | UX Context |
