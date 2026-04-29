@@ -2,10 +2,21 @@ import UIKit
 
 class MainTabBarController: UITabBarController {
     
-    weak var mainCoordinator: MainCoordinator?
+    private var homeCoordinator: HomeCoordinator
+    private var checkoutCoordinator: CheckoutCoordinator
+    private var ordersCoordinator: OrdersCoordinator
+    private var profileCoordinator: ProfileCoordinator
     
-    init(coordinator: MainCoordinator) {
-        self.mainCoordinator = coordinator
+    init(mainCoordinator: MainCoordinator) {
+        self.homeCoordinator = HomeCoordinator(navigationController: UINavigationController())
+        self.checkoutCoordinator = CheckoutCoordinator(navigationController: UINavigationController())
+        self.ordersCoordinator = OrdersCoordinator(navigationController: UINavigationController())
+        self.profileCoordinator = ProfileCoordinator(navigationController: UINavigationController())
+        
+        [homeCoordinator, checkoutCoordinator, ordersCoordinator, profileCoordinator].forEach {
+            $0.parentCoordinator = mainCoordinator
+        }
+        
         super.init(nibName: nil, bundle: nil)
     }
     
@@ -58,46 +69,43 @@ class MainTabBarController: UITabBarController {
         let config = UIImage.SymbolConfiguration(pointSize: 24, weight: .medium)
         
         // 1. Catalog Tab
-        let catalogVC = HomeViewController()
-        catalogVC.coordinator = mainCoordinator
-        let catalogNav = UINavigationController(rootViewController: catalogVC)
-        catalogNav.tabBarItem = UITabBarItem(
+        homeCoordinator.start()
+        homeCoordinator.navigationController.tabBarItem = UITabBarItem(
             title: "Shop",
             image: UIImage(systemName: "bag", withConfiguration: config),
             selectedImage: UIImage(systemName: "bag.fill", withConfiguration: config)
         )
         
         // 2. Cart Tab
-        let cartVC = ReviewOrderViewController()
-        cartVC.coordinator = mainCoordinator
-        let cartNav = UINavigationController(rootViewController: cartVC)
-        cartNav.tabBarItem = UITabBarItem(
+        checkoutCoordinator.start()
+        checkoutCoordinator.navigationController.tabBarItem = UITabBarItem(
             title: "Cart",
             image: UIImage(systemName: "cart", withConfiguration: config),
             selectedImage: UIImage(systemName: "cart.fill", withConfiguration: config)
         )
         
         // 3. Orders Tab
-        let ordersVC = OrderHistoryViewController()
-        ordersVC.coordinator = mainCoordinator
-        let ordersNav = UINavigationController(rootViewController: ordersVC)
-        ordersNav.tabBarItem = UITabBarItem(
+        ordersCoordinator.start()
+        ordersCoordinator.navigationController.tabBarItem = UITabBarItem(
             title: "Orders",
             image: UIImage(systemName: "clock", withConfiguration: config),
             selectedImage: UIImage(systemName: "clock.fill", withConfiguration: config)
         )
         
         // 4. Profile Tab
-        let profileVC = ProfileViewController()
-        profileVC.coordinator = mainCoordinator
-        let profileNav = UINavigationController(rootViewController: profileVC)
-        profileNav.tabBarItem = UITabBarItem(
+        profileCoordinator.start()
+        profileCoordinator.navigationController.tabBarItem = UITabBarItem(
             title: "Profile",
             image: UIImage(systemName: "person.circle", withConfiguration: config),
             selectedImage: UIImage(systemName: "person.circle.fill", withConfiguration: config)
         )
         
-        viewControllers = [catalogNav, cartNav, ordersNav, profileNav]
+        viewControllers = [
+            homeCoordinator.navigationController,
+            checkoutCoordinator.navigationController,
+            ordersCoordinator.navigationController,
+            profileCoordinator.navigationController
+        ]
     }
 }
 

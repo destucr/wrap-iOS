@@ -4,6 +4,7 @@ import Hero
 class MainCoordinator: Coordinator {
     var navigationController: UINavigationController
     var window: UIWindow?
+    var childCoordinators = [Coordinator]()
     
     init(navigationController: UINavigationController, window: UIWindow?) {
         self.navigationController = navigationController
@@ -20,9 +21,10 @@ class MainCoordinator: Coordinator {
     }
     
     func showLogin() {
-        let vc = LoginViewController()
-        vc.coordinator = self
-        navigationController.viewControllers = [vc]
+        let child = AuthCoordinator(navigationController: navigationController)
+        child.parentCoordinator = self
+        childCoordinators.append(child)
+        child.start()
         
         UIView.transition(with: window!, duration: 0.3, options: .transitionCrossDissolve, animations: {
             self.window?.rootViewController = self.navigationController
@@ -35,7 +37,7 @@ class MainCoordinator: Coordinator {
             return
         }
         
-        let tabBar = MainTabBarController(coordinator: self)
+        let tabBar = MainTabBarController(mainCoordinator: self)
         
         UIView.transition(with: window!, duration: 0.3, options: .transitionCrossDissolve, animations: {
             self.window?.rootViewController = tabBar

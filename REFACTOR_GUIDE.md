@@ -33,7 +33,19 @@ If a specific network feature breaks:
 ---
 
 ## 🛠 Phase 2: Coordinator Decomposition
-**Status:** Planned  
+**Status:** ✅ Completed  
+**Reasoning:** Reduce the size and complexity of `MainCoordinator`. Follows the "Single Responsibility Principle" for navigation by delegating tab-specific logic to sub-coordinators.
+
+### Key Changes
+- Introduced `AuthCoordinator`, `HomeCoordinator`, `CheckoutCoordinator`, `OrdersCoordinator`, and `ProfileCoordinator`.
+- Refactored `MainTabBarController` to initialize and start these sub-coordinators for each tab.
+- `MainCoordinator` now acts as the root orchestrator and maintains a `childCoordinators` array.
+
+### How to Revert
+If navigation between tabs or initial login flow breaks:
+1. Verify that `MainTabBarController` correctly initializes sub-coordinators with their own `UINavigationController`.
+2. Ensure `start()` is called on each sub-coordinator in `setupTabs()`.
+3. If necessary, revert `MainTabBarController` to instantiate ViewControllers directly as it did before.
 
 ---
 
