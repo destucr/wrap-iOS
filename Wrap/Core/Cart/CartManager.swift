@@ -111,6 +111,22 @@ class CartManager {
         let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/user/cart/sync", method: "POST", body: jsonData)
     }
     
+    func previewCheckout(address: [String: String]? = nil) async throws -> CheckoutPreviewResponse {
+        let payload: [String: Any] = [
+            "items": items.map { [
+                "variant_id": $0.variantId.uuidString.lowercased(),
+                "quantity": $0.quantity
+            ]},
+            "address": address ?? [:]
+        ]
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {
+            throw NetworkError.decodingError
+        }
+        
+        return try await NetworkManager.shared.request(endpoint: "/checkout/preview", method: "POST", body: jsonData)
+    }
+    
     func placeOrder(address: [String: String]) async throws -> OrderResponse {
         let payload: [String: Any] = [
             "items": items.map { [

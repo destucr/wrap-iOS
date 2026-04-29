@@ -6,6 +6,7 @@ final class ReviewOrderViewController: UIViewController {
     weak var coordinator: MainCoordinator?
     private var recommendations: [Product] = []
     private var cartItems: [CartItem] = []
+    private var previewResponse: CheckoutPreviewResponse?
     
     private let tableView: UITableView = {
         let tv = UITableView(frame: .zero, style: .grouped)
@@ -146,10 +147,10 @@ final class ReviewOrderViewController: UIViewController {
         
         if isEmpty {
             navigationItem.title = ""
+            previewResponse = nil
         } else {
             navigationItem.title = "Review Order"
-            tableView.reloadData()
-            updateSummary()
+            fetchPreview()
         }
         
         // Update tab badge
@@ -159,13 +160,37 @@ final class ReviewOrderViewController: UIViewController {
             cartTab.badgeColor = Brand.primary
         }
     }
+
+    private func fetchPreview() {
+        Task {
+            do {
+                let response = try await CartManager.shared.previewCheckout()
+                self.previewResponse = response
+                self.tableView.reloadData()
+                self.updateSummary()
+                
+                // Disable pay button if inventory is invalid
+                self.payButton.isEnabled = response.isValid
+                self.payButton.backgroundColor = response.isValid ? Brand.primary : .systemGray4
+            } catch {
+                print("Failed to fetch checkout preview: \(error)")
+                // Fallback to local calculation if network fails
+                self.tableView.reloadData()
+                self.updateSummary()
+            }
+        }
+    }
     
     private func updateSummary() {
-        let subtotal = CartManager.shared.totalAmount
-        let deliveryFee = 5000.0
-        let serviceFee = 1000.0
-        let total = subtotal + deliveryFee + serviceFee
-        finalTotalLabel.text = total.formattedIDR
+        if let response = previewResponse {
+            finalTotalLabel.text = response.total.formattedIDR
+        } else {
+            let subtotal = CartManager.shared.totalAmount
+            let deliveryFee = 5000.0
+            let serviceFee = 1000.0
+            let total = subtotal + deliveryFee + serviceFee
+            finalTotalLabel.text = total.formattedIDR
+        }
     }
     
     @objc private func handleMulaiBelanja() {
@@ -213,7 +238,9 @@ extension ReviewOrderViewController: UITableViewDelegate, UITableViewDataSource 
         case 1:
             let cell = tableView.dequeueReusableCell(withIdentifier: ReviewItemCell.identifier, for: indexPath) as! ReviewItemCell
             let item = cartItems[indexPath.row]
-            cell.configure(with: item)
+            let previewItem = previewResponse?.items.first(where: { $0.variantId == item.variantId })
+            
+            cell.configure(with: item, message: previewItem?.message)
             cell.onQuantityChange = { [weak self] newQty in
                 CartManager.shared.setQuantity(variantId: item.variantId, quantity: newQty)
                 self?.updateUIState()
@@ -325,6 +352,13 @@ final class ReviewItemCell: UITableViewCell {
     private let container = UIView()
     private let nameLabel = UILabel()
     private let priceLabel = UILabel()
+    private let warningLabel: UILabel = {
+        let label = UILabel()
+        label.font = Brand.Typography.body(size: 11)
+        label.textColor = .systemRed
+        label.isHidden = true
+        return label
+    }()
     private let stepper = InteractiveStepper()
     var onQuantityChange: ((Int) -> Void)?
     
@@ -349,7 +383,7 @@ final class ReviewItemCell: UITableViewCell {
         priceLabel.font = Brand.Typography.body(size: 14)
         stepper.delegate = self
         
-        [nameLabel, priceLabel, stepper].forEach { container.addSubview($0) }
+        [nameLabel, priceLabel, warningLabel, stepper].forEach { container.addSubview($0) }
         nameLabel.snp.makeConstraints { make in
             make.top.equalToSuperview().offset(12)
             make.leading.equalToSuperview().offset(12)
@@ -357,6 +391,10 @@ final class ReviewItemCell: UITableViewCell {
         }
         priceLabel.snp.makeConstraints { make in
             make.top.equalTo(nameLabel.snp.bottom).offset(4)
+            make.leading.equalToSuperview().offset(12)
+        }
+        warningLabel.snp.makeConstraints { make in
+            make.top.equalTo(priceLabel.snp.bottom).offset(2)
             make.leading.equalToSuperview().offset(12)
             make.bottom.equalToSuperview().offset(-12)
         }
@@ -368,10 +406,20 @@ final class ReviewItemCell: UITableViewCell {
         }
     }
     
-    func configure(with item: CartItem) {
+    func configure(with item: CartItem, message: String? = nil) {
         nameLabel.text = item.name
         priceLabel.text = item.price.formattedIDR
         stepper.setValue(item.quantity)
+        
+        if let message = message {
+            warningLabel.text = message
+            warningLabel.isHidden = false
+            container.layer.borderWidth = 1
+            container.layer.borderColor = UIColor.systemRed.withAlphaComponent(0.3).cgColor
+        } else {
+            warningLabel.isHidden = true
+            container.layer.borderWidth = 0
+        }
     }
 }
 
