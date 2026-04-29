@@ -87,7 +87,7 @@ final class HomeViewController: UIViewController {
     
     private func createLayout() -> UICollectionViewLayout {
         return UICollectionViewCompositionalLayout { [weak self] (sectionIndex, _) -> NSCollectionLayoutSection? in
-            guard let self = self, let feed = self.feed else { return nil }
+            guard let self = self else { return nil }
             
             if sectionIndex == 0 { // Banners
                 let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .fractionalHeight(1)))
@@ -104,6 +104,20 @@ final class HomeViewController: UIViewController {
                 section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 16, trailing: 16)
                 return section
             } else { // Dynamic Product Sections
+                guard let feed = self.feed else {
+                    // Vertical 2-column Grid for skeleton
+                    let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.5), heightDimension: .estimated(240)))
+                    item.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 16, trailing: 6)
+                    let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .estimated(240)), subitems: [item])
+                    let section = NSCollectionLayoutSection(group: group)
+                    section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 16, trailing: 10)
+                    
+                    let headerSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(44))
+                    let header = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: headerSize, elementKind: UICollectionView.elementKindSectionHeader, alignment: .top)
+                    section.boundarySupplementaryItems = [header]
+                    return section
+                }
+                
                 let feedSection = feed.sections[sectionIndex - 2]
                 
                 if feedSection.type == "personalized" {
