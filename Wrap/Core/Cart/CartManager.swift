@@ -23,11 +23,19 @@ class CartManager: Sendable {
     
     private var context: ModelContext?
     private var isSyncing = false
+    private var _idempotencyKey: String?
     
     private init() {}
     
     func setup(context: ModelContext) {
         self.context = context
+    }
+
+    var idempotencyKey: String {
+        if let key = _idempotencyKey { return key }
+        let newKey = UUID().uuidString.lowercased()
+        _idempotencyKey = newKey
+        return newKey
     }
     
     // MARK: - Local Logic (SwiftData)
@@ -80,6 +88,7 @@ class CartManager: Sendable {
             try context.save()
             // Force process changes to ensure other queries see it immediately
             context.processPendingChanges()
+            _idempotencyKey = nil
             NotificationCenter.default.post(name: .cartUpdated, object: nil)
         } catch {
             print("Failed to save cart: \(error)")
@@ -99,6 +108,7 @@ class CartManager: Sendable {
     func clear() {
         guard let context = context else { return }
         try? context.delete(model: CartItem.self)
+        _idempotencyKey = nil
         saveAndNotify()
     }
     
@@ -161,7 +171,7 @@ class CartManager: Sendable {
                 "quantity": $0.quantity
             ]},
             "address": address,
-            "idempotency_key": UUID().uuidString.lowercased()
+            "idempotency_key": idempotencyKey
         ]
         
         guard let jsonData = try? JSONSerialization.data(withJSONObject: payload) else {

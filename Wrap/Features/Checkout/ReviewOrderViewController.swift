@@ -241,6 +241,10 @@ final class ReviewOrderViewController: UIViewController {
     }
     
     @objc private func didTapPay() {
+        payButton.isEnabled = false
+        payButton.alpha = 0.5
+        payButton.setTitle("Memproses...", for: .normal)
+        
         Task {
             do {
                 let address: [String: String] = [
@@ -253,6 +257,13 @@ final class ReviewOrderViewController: UIViewController {
                 coordinator?.showOrderSuccess(orderId: response.orderId.uuidString, paymentUrl: response.paymentUrl)
             } catch {
                 print("Order placement failed: \(error)")
+                payButton.isEnabled = true
+                payButton.alpha = 1.0
+                payButton.setTitle("Bayar Sekarang", for: .normal)
+                
+                let alert = UIAlertController(title: "Gagal", message: "Gagal membuat pesanan. Silakan coba lagi.", preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "OK", style: .default))
+                present(alert, animated: true)
             }
         }
     }

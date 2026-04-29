@@ -25,6 +25,9 @@ To prevent user frustration during checkout, the app uses the `/checkout/preview
 - **Trigger:** Call on cart load and whenever a stepper value changes.
 - **Logic:** If `is_valid` is `false`, the "Place Order" button must be disabled, and the affected `ReviewItemCell` should display the `message` (e.g., "Out of stock").
 - **Data Integrity:** UI updates are handled through `NotificationCenter` observers. `ReviewOrderViewController` prioritizes immediate local state updates while `Task`-based network previews run in the background with cancellation support to prevent stale data race conditions.
+- **Idempotency & Double-Tap Protection:** 
+    - The `CartManager` maintains a stable `idempotencyKey` that remains constant for a specific cart state. It resets only when items are added, removed, or quantities change.
+    - `ReviewOrderViewController` disables the payment button and shows a "Processing" state during order placement to prevent duplicate submissions from rapid taps.
 
 ### The Coordinator Pattern
 Navigation is decoupled from ViewControllers. 
