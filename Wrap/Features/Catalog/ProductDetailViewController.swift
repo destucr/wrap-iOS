@@ -26,8 +26,8 @@ final class ProductDetailViewController: UIViewController {
     // 2. Price Block
     private let priceLabel: UILabel = {
         let label = UILabel()
-        label.font = Brand.Typography.header(size: 28)
-        label.textColor = Brand.primary
+        label.font = .systemFont(ofSize: 22, weight: .thin)
+        label.textColor = Brand.Text.primary
         return label
     }()
     

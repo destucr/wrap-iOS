@@ -33,8 +33,8 @@ class ProductCell: UITableViewCell {
     
     private let priceLabel: UILabel = {
         let label = UILabel()
-        label.font = Brand.Typography.body()
-        label.textColor = Brand.primary
+        label.font = Brand.Typography.price()
+        label.textColor = Brand.Text.primary
         return label
     }()
     

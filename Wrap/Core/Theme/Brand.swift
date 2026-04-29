@@ -29,7 +29,7 @@ enum Brand {
             return .systemFont(ofSize: 12, weight: .regular)
         }
         static func price() -> UIFont {
-            return .systemFont(ofSize: 15, weight: .bold)
+            return .systemFont(ofSize: 14, weight: .thin)
         }
     }
 }

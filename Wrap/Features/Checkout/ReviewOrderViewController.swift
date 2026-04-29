@@ -36,7 +36,7 @@ final class ReviewOrderViewController: UIViewController {
     
     private let finalAmountLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 22, weight: .bold)
+        label.font = .systemFont(ofSize: 18, weight: .thin)
         label.textColor = Brand.Text.primary
         return label
     }()
@@ -453,8 +453,8 @@ final class ReviewItemCell: UITableViewCell {
         nameLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         nameLabel.numberOfLines = 2
         
-        priceLabel.font = .systemFont(ofSize: 14, weight: .regular)
-        priceLabel.textColor = Brand.Text.secondary
+        priceLabel.font = .systemFont(ofSize: 14, weight: .thin)
+        priceLabel.textColor = Brand.Text.primary
         
         [thumbnail, nameLabel, priceLabel, stepper].forEach { container.addSubview($0) }
         
@@ -663,10 +663,10 @@ final class PricingCell: UITableViewCell {
     private func createRow(label: String, value: String, isTotal: Bool = false, valueColor: UIColor? = nil) -> UIView {
         let view = UIView()
         let l = UILabel(); l.text = label
-        l.font = isTotal ? .systemFont(ofSize: 16, weight: .bold) : .systemFont(ofSize: 14)
+        l.font = isTotal ? .systemFont(ofSize: 15, weight: .semibold) : .systemFont(ofSize: 14)
         
         let v = UILabel(); v.text = value
-        v.font = isTotal ? .systemFont(ofSize: 16, weight: .bold) : .systemFont(ofSize: 14)
+        v.font = isTotal ? .systemFont(ofSize: 15, weight: .thin) : .systemFont(ofSize: 14, weight: .thin)
         v.textColor = valueColor ?? Brand.Text.primary
         
         view.addSubview(l); view.addSubview(v)

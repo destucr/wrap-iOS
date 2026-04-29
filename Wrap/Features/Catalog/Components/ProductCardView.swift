@@ -29,7 +29,7 @@ final class ProductCardView: UICollectionViewCell {
     private let priceLabel: UILabel = {
         let label = UILabel()
         label.font = Brand.Typography.price()
-        label.textColor = Brand.primary
+        label.textColor = Brand.Text.primary
         label.setContentHuggingPriority(.required, for: .horizontal)
         label.setContentCompressionResistancePriority(.required, for: .horizontal)
         return label
