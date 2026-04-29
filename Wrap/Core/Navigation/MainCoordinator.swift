@@ -56,7 +56,7 @@ class MainCoordinator: Coordinator {
         }
     }
     
-    func showCategory(category: Category) {
+    func showCatalogCategory(category: CatalogCategory) {
         let vc = CatalogViewController(category: category)
         vc.coordinator = self
         currentNavigationController?.pushViewController(vc, animated: true)
@@ -69,7 +69,7 @@ class MainCoordinator: Coordinator {
     }
     
     func showCart() {
-        let vc = CartViewController()
+        let vc = ReviewOrderViewController()
         vc.coordinator = self
         currentNavigationController?.pushViewController(vc, animated: true)
     }

@@ -101,7 +101,7 @@ final class ProfileViewController: UIViewController {
     private func fetchProfile() {
         Task {
             do {
-                let user: User = try await NetworkManager.shared.request(endpoint: "/user/profile")
+                let user: UserData = try await NetworkManager.shared.request(endpoint: "/user/profile")
                 nameLabel.text = user.fullName
                 addressLabel.text = user.email // Fallback to email if address is nil
                 

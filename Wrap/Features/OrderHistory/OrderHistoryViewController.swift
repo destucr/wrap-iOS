@@ -67,7 +67,7 @@ class OrderCell: UITableViewCell {
     
     func configure(with order: Order) {
         orderIdLabel.text = "Order #\(order.id.uuidString.prefix(8))"
-        amountLabel.text = "Rp \(Int(order.totalAmount))"
+        amountLabel.text = order.totalAmount.formattedIDR
         statusLabel.text = order.paymentStatus.rawValue
         
         let formatter = DateFormatter()

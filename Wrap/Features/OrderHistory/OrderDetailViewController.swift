@@ -119,7 +119,7 @@ extension OrderDetailViewController: UITableViewDelegate, UITableViewDataSource 
                 cell.detailTextLabel?.textColor = detail.paymentStatus == .paid ? .systemGreen : .systemRed
             } else {
                 cell.textLabel?.text = "Total Bayar"
-                cell.detailTextLabel?.text = "Rp \(Int(detail.totalAmount))"
+                cell.detailTextLabel?.text = detail.totalAmount.formattedIDR
                 cell.detailTextLabel?.font = .systemFont(ofSize: 16, weight: .bold)
             }
             return cell
@@ -169,7 +169,7 @@ final class OrderItemDetailCell: UITableViewCell {
     func configure(with item: OrderItem) {
         nameLabel.text = item.productName
         variantLabel.text = "\(item.variantName) x \(item.quantity)"
-        priceLabel.text = "Rp \(Int(item.priceAtPurchase * Double(item.quantity)))"
+        priceLabel.text = (item.priceAtPurchase * Double(item.quantity)).formattedIDR
     }
 }
 

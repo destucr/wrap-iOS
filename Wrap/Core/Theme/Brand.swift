@@ -31,3 +31,14 @@ extension UIView {
         self.layer.masksToBounds = true
     }
 }
+
+extension Double {
+    var formattedIDR: String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "id_ID")
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = "."
+        let formattedString = formatter.string(from: NSNumber(value: self)) ?? "\(Int(self))"
+        return "Rp\(formattedString)"
+    }
+}

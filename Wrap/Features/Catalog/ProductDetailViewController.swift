@@ -198,7 +198,6 @@ final class ProductDetailViewController: UIViewController {
         metadataStack.snp.makeConstraints { make in
             make.top.equalTo(nameLabel.snp.bottom).offset(12)
             make.leading.equalToSuperview().offset(20)
-            make.bottom.equalToSuperview().offset(-40) // End of content
         }
         
         descriptionHeader.snp.makeConstraints { make in
@@ -207,13 +206,6 @@ final class ProductDetailViewController: UIViewController {
         }
         
         descriptionLabel.snp.makeConstraints { make in
-            make.top.equalTo(descriptionHeader.snp.bottom).offset(8)
-            make.leading.trailing.equalToSuperview().inset(20)
-            make.bottom.equalToSuperview().offset(-40)
-        }
-        
-        // Constraints update: move description bottom to contentView bottom
-        descriptionLabel.snp.remakeConstraints { make in
             make.top.equalTo(descriptionHeader.snp.bottom).offset(8)
             make.leading.trailing.equalToSuperview().inset(20)
             make.bottom.equalToSuperview().offset(-40)
@@ -239,8 +231,9 @@ final class ProductDetailViewController: UIViewController {
     private func configureUI(with product: Product) {
         title = product.name
         nameLabel.text = product.name
-        priceLabel.text = "Rp \(Int(product.basePrice))"
+        priceLabel.text = product.basePrice.formattedIDR
         descriptionLabel.text = product.description ?? "Tidak ada deskripsi."
+
         
         if let imageUrlString = product.images?.first, let url = URL(string: imageUrlString) {
             imageView.kf.setImage(with: url)

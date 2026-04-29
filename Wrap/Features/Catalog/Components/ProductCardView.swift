@@ -1,8 +1,15 @@
 import UIKit
 import Kingfisher
 
+protocol ProductCardDelegate: AnyObject {
+    func productCard(_ cell: ProductCardView, didUpdateQuantity quantity: Int, for product: Product)
+}
+
 final class ProductCardView: UICollectionViewCell {
     static let identifier = "ProductCardView"
+    
+    weak var delegate: ProductCardDelegate?
+    private var product: Product?
     
     private let imageView: UIImageView = {
         let iv = UIImageView()
@@ -69,6 +76,8 @@ final class ProductCardView: UICollectionViewCell {
         contentView.addSubview(scarcityLabel)
         contentView.addSubview(stepper)
         
+        stepper.delegate = self
+        
         imageView.translatesAutoresizingMaskIntoConstraints = false
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
         priceLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -106,8 +115,9 @@ final class ProductCardView: UICollectionViewCell {
     }
     
     func configure(with product: Product) {
+        self.product = product
         nameLabel.text = product.name
-        priceLabel.text = String(format: "Rp %.0f", product.basePrice)
+        priceLabel.text = product.basePrice.formattedIDR
         
         let weight = product.weightLabel ?? product.unitOfMeasure
         unitLabel.text = weight != nil ? "/ \(weight!)" : ""
@@ -120,8 +130,13 @@ final class ProductCardView: UICollectionViewCell {
             } else {
                 scarcityLabel.isHidden = true
             }
+            
+            // Sync stepper with cart
+            let currentQty = CartManager.shared.quantity(for: firstVariant.id)
+            stepper.setValue(currentQty)
         } else {
             scarcityLabel.isHidden = true
+            stepper.setValue(0)
         }
         
         if let imageUrlString = product.images?.first, let url = URL(string: imageUrlString) {
@@ -129,5 +144,12 @@ final class ProductCardView: UICollectionViewCell {
         } else {
             imageView.image = UIImage(systemName: "photo")
         }
+    }
+}
+
+extension ProductCardView: InteractiveStepperDelegate {
+    func stepper(_ stepper: InteractiveStepper, didUpdateValue value: Int) {
+        guard let product = product else { return }
+        delegate?.productCard(self, didUpdateQuantity: value, for: product)
     }
 }

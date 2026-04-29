@@ -1,12 +1,13 @@
 import Foundation
 
-enum OrderStatus: String, Codable {
+// Enums conform to Sendable by default if they don't have associated values
+nonisolated enum OrderStatus: String, Codable, Sendable {
     case pending = "PENDING"
     case paid = "PAID"
     case cancelled = "CANCELLED"
 }
 
-enum DeliveryStatus: String, Codable {
+nonisolated enum DeliveryStatus: String, Codable, Sendable {
     case pending = "PENDING"
     case packing = "PACKING"
     case inTransit = "IN_TRANSIT"
@@ -14,7 +15,7 @@ enum DeliveryStatus: String, Codable {
     case failed = "FAILED"
 }
 
-struct Order: Codable {
+nonisolated struct Order: Codable, Sendable {
     let id: UUID
     let userId: UUID
     let totalAmount: Double
@@ -25,25 +26,25 @@ struct Order: Codable {
     let ratingComment: String?
     let createdAt: Date
     let expiresAt: Date?
-    
-    enum CodingKeys: String, CodingKey {
+
+    nonisolated enum CodingKeys: String, CodingKey {
         case id, userId = "user_id", totalAmount = "total_amount", paymentStatus = "payment_status", deliveryStatus = "delivery_status", paymentUrl = "payment_url", rating, ratingComment = "rating_comment", createdAt = "created_at", expiresAt = "expires_at"
     }
 }
 
-struct OrderItem: Codable {
+nonisolated struct OrderItem: Codable, Sendable {
     let id: UUID
     let productName: String
     let variantName: String
     let quantity: Int
     let priceAtPurchase: Double
-    
-    enum CodingKeys: String, CodingKey {
+
+    nonisolated enum CodingKeys: String, CodingKey {
         case id, productName = "product_name", variantName = "variant_name", quantity, priceAtPurchase = "price_at_purchase"
     }
 }
 
-struct OrderDetailResponse: Codable {
+nonisolated struct OrderDetailResponse: Codable, Sendable {
     let id: UUID
     let totalAmount: Double
     let paymentStatus: OrderStatus
@@ -52,8 +53,8 @@ struct OrderDetailResponse: Codable {
     let ratingComment: String?
     let createdAt: Date
     let items: [OrderItem]
-    
-    enum CodingKeys: String, CodingKey {
+
+    nonisolated enum CodingKeys: String, CodingKey {
         case id, totalAmount = "total_amount", paymentStatus = "payment_status", deliveryStatus = "delivery_status", rating, ratingComment = "rating_comment", createdAt = "created_at", items
     }
 }

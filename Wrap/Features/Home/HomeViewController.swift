@@ -14,8 +14,8 @@ final class HomeViewController: UIViewController {
         case personalized
     }
     
-    private var feed: HomeFeedResponse?
-    private var user: User?
+    private var feed: HomeFeedData?
+    private var user: UserData?
     
     private let headerView = HomeHeaderView()
     
@@ -63,20 +63,26 @@ final class HomeViewController: UIViewController {
     private func fetchData() {
         Task {
             do {
-                async let feedRequest: HomeFeedResponse = NetworkManager.shared.request(endpoint: "/catalog/home")
-                async let profileRequest: User = NetworkManager.shared.request(endpoint: "/user/profile")
-                
-                let (fetchedFeed, fetchedUser) = try await (feedRequest, profileRequest)
+                let fetchedFeed = try await self.performFetchHome()
+                let fetchedUserData = try await self.performFetchProfile()
                 
                 self.feed = fetchedFeed
-                self.user = fetchedUser
+                self.user = fetchedUserData
                 
-                headerView.configure(with: fetchedUser)
+                headerView.configure(with: fetchedUserData)
                 self.collectionView.reloadData()
             } catch {
                 print("Failed to fetch home data: \(error)")
             }
         }
+    }
+    
+    nonisolated private func performFetchHome() async throws -> HomeFeedData {
+        try await NetworkManager.shared.request(endpoint: "/catalog/home")
+    }
+    
+    nonisolated private func performFetchProfile() async throws -> UserData {
+        try await NetworkManager.shared.request(endpoint: "/user/profile")
     }
     
     private func createLayout() -> UICollectionViewLayout {
@@ -85,9 +91,10 @@ final class HomeViewController: UIViewController {
             
             if sectionIndex == 0 { // Banners
                 let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .fractionalHeight(1)))
-                let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.9), heightDimension: .absolute(160)), subitems: [item])
+                let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.92), heightDimension: .absolute(160)), subitems: [item])
                 let section = NSCollectionLayoutSection(group: group)
                 section.orthogonalScrollingBehavior = .groupPagingCentered
+                section.interGroupSpacing = 12
                 section.contentInsets = NSDirectionalEdgeInsets(top: 16, leading: 0, bottom: 16, trailing: 0)
                 return section
             } else if sectionIndex == 1 { // Categories
@@ -105,6 +112,7 @@ final class HomeViewController: UIViewController {
                     let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .absolute(160), heightDimension: .absolute(240)), subitems: [item])
                     let section = NSCollectionLayoutSection(group: group)
                     section.orthogonalScrollingBehavior = .continuous
+                    section.interGroupSpacing = 12
                     section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 24, trailing: 16)
                     
                     let headerSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(44))
@@ -114,10 +122,10 @@ final class HomeViewController: UIViewController {
                 } else {
                     // Vertical 2-column Grid for others
                     let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.5), heightDimension: .estimated(240)))
-                    item.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 4, bottom: 16, trailing: 4)
+                    item.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 16, trailing: 6)
                     let group = NSCollectionLayoutGroup.horizontal(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .estimated(240)), subitems: [item])
                     let section = NSCollectionLayoutSection(group: group)
-                    section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 12, bottom: 16, trailing: 12)
+                    section.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 10, bottom: 16, trailing: 10)
                     
                     let headerSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(44))
                     let header = NSCollectionLayoutBoundarySupplementaryItem(layoutSize: headerSize, elementKind: UICollectionView.elementKindSectionHeader, alignment: .top)
@@ -132,32 +140,56 @@ final class HomeViewController: UIViewController {
 
 extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelegate {
     func numberOfSections(in collectionView: UICollectionView) -> Int {
-        guard let feed = feed else { return 0 }
+        guard let feed = feed else { return 3 } // Dummy sections for skeleton
         return 2 + feed.sections.count
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        guard let feed = feed else { return 0 }
+        guard let feed = feed else {
+            if section == 0 { return 1 } // 1 Banner skeleton
+            if section == 1 { return 4 } // 4 Category skeletons
+            return 4 // 4 Product skeletons
+        }
         if section == 0 { return feed.banners.count }
         if section == 1 { return feed.categories.count }
         return feed.sections[section - 2].items.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        if feed == nil {
+            if indexPath.section == 0 {
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
+                cell.contentView.startShimmering()
+                return cell
+            } else if indexPath.section == 1 {
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
+                cell.contentView.startShimmering()
+                return cell
+            } else {
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCardView.identifier, for: indexPath) as! ProductCardView
+                cell.contentView.startShimmering()
+                return cell
+            }
+        }
+        
         guard let feed = feed else { return UICollectionViewCell() }
         
         if indexPath.section == 0 {
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
+            cell.contentView.stopShimmering()
             cell.configure(with: feed.banners[indexPath.item])
             return cell
         } else if indexPath.section == 1 {
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
+            cell.contentView.stopShimmering()
             cell.configure(with: feed.categories[indexPath.item])
             return cell
         } else {
             let sectionData = feed.sections[indexPath.section - 2]
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCardView.identifier, for: indexPath) as! ProductCardView
+            cell.contentView.stopShimmering()
             cell.configure(with: sectionData.items[indexPath.item])
+            cell.delegate = self
             return cell
         }
     }
@@ -178,7 +210,7 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
         
         if indexPath.section == 1 {
             let category = feed.categories[indexPath.item]
-            coordinator?.showCategory(category: category)
+            coordinator?.showCatalogCategory(category: category)
         } else if indexPath.section >= 2 {
             let product = feed.sections[indexPath.section - 2].items[indexPath.item]
             coordinator?.showProductDetail(productId: product.id)
@@ -186,8 +218,20 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
     }
 }
 
+extension HomeViewController: ProductCardDelegate {
+    func productCard(_ cell: ProductCardView, didUpdateQuantity quantity: Int, for product: Product) {
+        guard let firstVariant = product.variants?.first else { return }
+        let price = firstVariant.priceOverride ?? product.basePrice
+        
+        if quantity > 0 && CartManager.shared.items.first(where: { $0.variantId == firstVariant.id }) == nil {
+            CartManager.shared.add(variantId: firstVariant.id, name: product.name, price: price, quantity: quantity)
+        } else {
+            CartManager.shared.setQuantity(variantId: firstVariant.id, quantity: quantity)
+        }
+    }
+}
+
 // MARK: - Custom Views (Header, Cells, etc.)
-// (Rest of the supporting cells remain as defined in previous turns)
 
 final class HomeHeaderView: UIView {
     private let nameLabel: UILabel = {
@@ -245,13 +289,12 @@ final class HomeHeaderView: UIView {
         }
     }
     
-    func configure(with user: User) {
+    func configure(with user: UserData) {
         nameLabel.text = "Hello, \(user.fullName)"
         addressLabel.text = user.fullAddress ?? "Set your address"
     }
 }
 
-// (Ensuring SectionHeaderView, CategoryCell, BannerCell are present in the file)
 final class BannerCell: UICollectionViewCell {
     static let identifier = "BannerCell"
     private let imageView = UIImageView()
@@ -261,10 +304,12 @@ final class BannerCell: UICollectionViewCell {
         imageView.contentMode = .scaleAspectFill
         imageView.clipsToBounds = true
         imageView.roundCorners(radius: 12)
-        imageView.snp.makeConstraints { make in make.edges.equalToSuperview() }
+        imageView.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(4)
+        }
     }
     required init?(coder: NSCoder) { fatalError() }
-    func configure(with banner: Banner) {
+    func configure(with banner: PromoBanner) {
         if let url = URL(string: banner.imageUrl) { imageView.kf.setImage(with: url) }
     }
 }
@@ -276,17 +321,20 @@ final class CategoryCell: UICollectionViewCell {
     override init(frame: CGRect) {
         super.init(frame: frame)
         let stack = UIStackView(arrangedSubviews: [imageView, label])
-        stack.axis = .vertical; stack.alignment = .center; stack.spacing = 4
+        stack.axis = .vertical; stack.alignment = .center; stack.spacing = 8
         contentView.addSubview(stack)
-        stack.snp.makeConstraints { make in make.edges.equalToSuperview() }
-        imageView.snp.makeConstraints { make in make.size.equalTo(50) }
-        imageView.backgroundColor = Brand.secondary; imageView.roundCorners(radius: 25)
-        label.font = Brand.Typography.body(size: 12); label.textAlignment = .center
+        stack.snp.makeConstraints { make in make.edges.equalToSuperview().inset(4) }
+        imageView.snp.makeConstraints { make in make.size.equalTo(52) }
+        imageView.backgroundColor = Brand.secondary; imageView.roundCorners(radius: 26)
+        label.font = Brand.Typography.body(size: 11); label.textAlignment = .center; label.numberOfLines = 2
     }
     required init?(coder: NSCoder) { fatalError() }
-    func configure(with category: Category) {
+    func configure(with category: CatalogCategory) {
         label.text = category.name
-        if let iconUrl = category.iconUrl, let url = URL(string: iconUrl) { imageView.kf.setImage(with: url) }
+        if let iconUrl = category.iconUrl, let url = URL(string: iconUrl) {
+            imageView.kf.setImage(with: url)
+            imageView.contentMode = .scaleAspectFill
+        }
     }
 }
 

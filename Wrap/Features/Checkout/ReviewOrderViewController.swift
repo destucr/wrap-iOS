@@ -140,9 +140,11 @@ final class ReviewOrderViewController: UIViewController {
         self.cartItems = CartManager.shared.items
         let isEmpty = cartItems.isEmpty
         
-        tableView.isHidden = isEmpty
-        bottomBar.isHidden = isEmpty
-        emptyStateView.isHidden = !isEmpty
+        UIView.transition(with: self.view, duration: 0.3, options: .transitionCrossDissolve, animations: {
+            self.tableView.isHidden = isEmpty
+            self.bottomBar.isHidden = isEmpty
+            self.emptyStateView.isHidden = !isEmpty
+        }, completion: nil)
         
         if isEmpty {
             navigationItem.title = ""

@@ -4,7 +4,7 @@ import LocalAuthentication
 final class BiometricManager {
     static let shared = BiometricManager()
     
-    private init() {}
+    private init    () {}
     
     enum BiometricType {
         case none
@@ -25,6 +25,7 @@ final class BiometricManager {
             case .none: return .none
             case .touchID: return .touchID
             case .faceID: return .faceID
+            case .opticID: return .none // Or add opticID to BiometricType enum
             @unknown default: return .none
             }
         } else {

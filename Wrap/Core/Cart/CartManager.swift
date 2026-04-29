@@ -2,13 +2,14 @@ import Foundation
 import SwiftData
 import UIKit
 
-struct OrderResponse: Codable {
+// 1. Explicitly nonisolated and Sendable for background network decoding
+nonisolated struct OrderResponse: Codable, Sendable {
     let orderId: UUID
     let total: Double
     let expiresAt: Date
     let paymentUrl: String
-    
-    enum CodingKeys: String, CodingKey {
+
+    nonisolated enum CodingKeys: String, CodingKey {
         case total
         case orderId = "order_id"
         case expiresAt = "expires_at"

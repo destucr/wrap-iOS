@@ -1,6 +1,9 @@
 import Foundation
 
-struct Product: Codable {
+// MARK: - Core Models
+// Added 'nonisolated' to ensure background threads can decode these safely in Swift 6
+
+nonisolated struct Product: Codable, Sendable {
     let id: UUID
     let name: String
     let slug: String
@@ -15,8 +18,8 @@ struct Product: Codable {
     let weightLabel: String?
     let temperatureControl: String?
     let variants: [ProductVariant]?
-    
-    enum CodingKeys: String, CodingKey {
+
+    nonisolated enum CodingKeys: String, CodingKey {
         case id, name, slug, description, brand, tags, images, variants
         case isHalal = "is_halal"
         case basePrice = "base_price"
@@ -27,7 +30,7 @@ struct Product: Codable {
     }
 }
 
-struct ProductVariant: Codable {
+nonisolated struct ProductVariant: Codable, Sendable {
     let id: UUID
     let productId: UUID
     let sku: String
@@ -35,8 +38,8 @@ struct ProductVariant: Codable {
     let priceOverride: Double?
     let qtyOnHand: Int
     let weightGrams: Int?
-    
-    enum CodingKeys: String, CodingKey {
+
+    nonisolated enum CodingKeys: String, CodingKey {
         case id, name, sku
         case productId = "product_id"
         case priceOverride = "price_override"
@@ -45,38 +48,40 @@ struct ProductVariant: Codable {
     }
 }
 
-struct Banner: Codable {
+// MARK: - Catalog & Home Models
+
+nonisolated struct PromoBanner: Codable, Sendable {
     let id: UUID
     let imageUrl: String
     let actionUrl: String?
-    
-    enum CodingKeys: String, CodingKey {
+
+    nonisolated enum CodingKeys: String, CodingKey {
         case id
         case imageUrl = "image_url"
         case actionUrl = "action_url"
     }
 }
 
-struct Category: Codable {
+nonisolated struct CatalogCategory: Codable, Sendable {
     let id: UUID
     let name: String
     let iconUrl: String?
     let priority: Int
-    
-    enum CodingKeys: String, CodingKey {
+
+    nonisolated enum CodingKeys: String, CodingKey {
         case id, name, priority
         case iconUrl = "icon_url"
     }
 }
 
-struct FeedSection: Codable {
+nonisolated struct HomeFeedSection: Codable, Sendable {
     let title: String
     let type: String // "standard", "flash_sale", "personalized"
     let items: [Product]
 }
 
-struct HomeFeedResponse: Codable {
-    let banners: [Banner]
-    let categories: [Category]
-    let sections: [FeedSection]
+nonisolated struct HomeFeedData: Codable, Sendable {
+    let banners: [PromoBanner]
+    let categories: [CatalogCategory]
+    let sections: [HomeFeedSection]
 }
