@@ -20,6 +20,12 @@ We use a modular structure where code is grouped by **Feature** rather than tech
     - `Components/`: `EmptyCartView`, `ReviewItemCell`.
     - `ReviewOrderViewController`: The unified Cart + Review screen.
 
+### Real-time Inventory Validation
+To prevent user frustration during checkout, the app uses the `/checkout/preview` endpoint for proactive state management:
+- **Trigger:** Call on cart load and whenever a stepper value changes.
+- **Logic:** If `is_valid` is `false`, the "Place Order" button must be disabled, and the affected `ReviewItemCell` should display the `message` (e.g., "Out of stock").
+- **Benefit:** Validates prices and stock against the "Physical Truth" without locking inventory, ensuring a smooth transition to the final atomic `place` call.
+
 ### The Coordinator Pattern
 Navigation is decoupled from ViewControllers. 
 - **Implementation:** Every feature VC has a `weak var coordinator: MainCoordinator?` property.

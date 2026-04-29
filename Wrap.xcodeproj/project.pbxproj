@@ -13,6 +13,7 @@
 		43749CC82FA0AA2400E4D769 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 43749CC72FA0AA2400E4D769 /* Kingfisher */; };
 		43749CCB2FA0AB3900E4D769 /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = 43749CCA2FA0AB3900E4D769 /* SnapKit */; };
 		43749CE82FA0B0DC00E4D769 /* IQKeyboardManagerSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 43749CE72FA0B0DC00E4D769 /* IQKeyboardManagerSwift */; };
+		438D45EB2FA1CE2E001042F7 /* Hero in Frameworks */ = {isa = PBXBuildFile; productRef = 438D45EA2FA1CE2E001042F7 /* Hero */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -79,6 +80,7 @@
 				43749CBF2FA0A9D600E4D769 /* FirebaseAuth in Frameworks */,
 				43749CC12FA0A9D600E4D769 /* FirebaseCrashlytics in Frameworks */,
 				43749CCB2FA0AB3900E4D769 /* SnapKit in Frameworks */,
+				438D45EB2FA1CE2E001042F7 /* Hero in Frameworks */,
 				43749CE82FA0B0DC00E4D769 /* IQKeyboardManagerSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -146,6 +148,7 @@
 				43749CC72FA0AA2400E4D769 /* Kingfisher */,
 				43749CCA2FA0AB3900E4D769 /* SnapKit */,
 				43749CE72FA0B0DC00E4D769 /* IQKeyboardManagerSwift */,
+				438D45EA2FA1CE2E001042F7 /* Hero */,
 			);
 			productName = Wrap;
 			productReference = 43749C502FA0A84100E4D769 /* Wrap.app */;
@@ -234,6 +237,7 @@
 				43749CC62FA0AA2400E4D769 /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				43749CC92FA0AB3900E4D769 /* XCRemoteSwiftPackageReference "SnapKit" */,
 				43749CE62FA0B0DC00E4D769 /* XCRemoteSwiftPackageReference "IQKeyboardManager" */,
+				438D45E92FA1CE2E001042F7 /* XCRemoteSwiftPackageReference "hero" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 43749C512FA0A84100E4D769 /* Products */;
@@ -652,6 +656,14 @@
 				minimumVersion = 8.0.2;
 			};
 		};
+		438D45E92FA1CE2E001042F7 /* XCRemoteSwiftPackageReference "hero" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/herotransitions/hero";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.6.4;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -684,6 +696,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 43749CE62FA0B0DC00E4D769 /* XCRemoteSwiftPackageReference "IQKeyboardManager" */;
 			productName = IQKeyboardManagerSwift;
+		};
+		438D45EA2FA1CE2E001042F7 /* Hero */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 438D45E92FA1CE2E001042F7 /* XCRemoteSwiftPackageReference "hero" */;
+			productName = Hero;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
