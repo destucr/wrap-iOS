@@ -147,6 +147,14 @@ final class HomeViewController: UIViewController {
             make.top.equalTo(searchBar.snp.bottom).offset(8)
             make.leading.trailing.bottom.equalToSuperview()
         }
+
+        let searchTap = UITapGestureRecognizer(target: self, action: #selector(didTapSearch))
+        searchBar.addGestureRecognizer(searchTap)
+        searchBar.isUserInteractionEnabled = true
+    }
+    
+    @objc private func didTapSearch() {
+        coordinator?.showSearch()
     }
     
     private func fetchData() {

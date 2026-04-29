@@ -76,6 +76,15 @@ class MainCoordinator: Coordinator {
         }
     }
     
+    func showSearch() {
+        let vc = SearchViewController()
+        vc.coordinator = self
+        if let nav = currentNavigationController {
+            nav.hero.isEnabled = true
+            nav.pushViewController(vc, animated: true)
+        }
+    }
+    
     func showCart() {
         let vc = ReviewOrderViewController()
         vc.coordinator = self
