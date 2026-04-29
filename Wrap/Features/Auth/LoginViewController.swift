@@ -31,16 +31,6 @@ class LoginViewController: UIViewController {
         return tf
     }()
     
-    private let loginButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("Login", for: .normal)
-        button.backgroundColor = .systemBlue
-        button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 8
-        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
-        return button
-    }()
-    
     private let orLabel: UILabel = {
         let label = UILabel()
         label.text = "OR"
@@ -51,20 +41,46 @@ class LoginViewController: UIViewController {
     }()
     
     private let googleButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("Sign in with Google", for: .normal)
-        button.setTitleColor(.black, for: .normal)
-        button.backgroundColor = .white
-        button.layer.borderWidth = 1
-        button.layer.borderColor = UIColor.systemGray4.cgColor
-        button.layer.cornerRadius = 8
-        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        button.setImage(UIImage(systemName: "g.circle.fill"), for: .normal) // Placeholder for Google Logo
-        button.tintColor = .systemRed
-        button.imageEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: 0, right: 10)
+        // 1. Start with a plain configuration
+        var config = UIButton.Configuration.plain()
+
+        // 2. Set the Title and Font
+        config.title = "Sign in with Google"
+        config.baseForegroundColor = .label // Respects Light/Dark mode text color
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var outgoing = incoming
+            outgoing.font = .systemFont(ofSize: 16, weight: .medium)
+            return outgoing
+        }
+
+        // 3. Add the Image (Ensure "google_logo" is in your Assets)
+        config.image = UIImage(named: "google_logo")?.withRenderingMode(.alwaysOriginal)
+        config.imagePadding = 10
+        config.imagePlacement = .leading
+
+        // 4. Create the Bordered Background
+        config.background.backgroundColor = .systemBackground
+        config.background.strokeColor = .systemGray4
+        config.background.strokeWidth = 1.0
+        config.background.cornerRadius = 8
+
+        // 5. Apply to button
+        let button = UIButton(configuration: config)
         return button
     }()
-    
+
+
+    private let loginButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Login", for: .normal)
+        // FIX: Changed from .systemBlue to Wrap Emerald per Guideline 1.1
+        button.backgroundColor = UIColor(named: "#2ECC71")
+        button.setTitleColor(.white, for: .normal)
+        button.layer.cornerRadius = 8
+        button.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        return button
+    }()
+
     private let biometricButton: UIButton = {
         let button = UIButton(type: .system)
         let icon = BiometricManager.shared.biometricType == .faceID ? "faceid" : "touchid"

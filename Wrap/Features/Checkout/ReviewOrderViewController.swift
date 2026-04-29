@@ -68,61 +68,68 @@ final class ReviewOrderViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = Brand.secondary
         title = "Review Order"
-        
+
+        // 1. Order of addSubview matters for shadow visibility
         view.addSubview(tableView)
-        view.addSubview(bottomBar)
         view.addSubview(emptyStateView)
-        
+        view.addSubview(bottomBar) // Add last so shadow is on top
+
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.register(AddressCell.self, forCellReuseIdentifier: AddressCell.identifier)
-        tableView.register(ReviewItemCell.self, forCellReuseIdentifier: ReviewItemCell.identifier)
-        tableView.register(PricingCell.self, forCellReuseIdentifier: PricingCell.identifier)
-        
-        // Layout Constraints
+        // ... identifiers ...
+
+        // 2. FIXED: Bottom Bar Styling & Constraints
         bottomBar.backgroundColor = .white
-        bottomBar.applyShadow()
+        bottomBar.applyShadow() // Ensure this applies a TOP shadow
+
         bottomBar.snp.makeConstraints { make in
             make.bottom.leading.trailing.equalToSuperview()
-            make.height.equalTo(100 + (UIApplication.shared.windows.first?.safeAreaInsets.bottom ?? 0))
+            // Remove height: equalTo(100). Let content decide.
         }
-        
+
         bottomBar.addSubview(totalPaymentLabel)
         bottomBar.addSubview(finalTotalLabel)
         bottomBar.addSubview(payButton)
-        
+
+        // 1. Register your custom cell classes
+        tableView.register(AddressCell.self, forCellReuseIdentifier: AddressCell.identifier)
+        tableView.register(ReviewItemCell.self, forCellReuseIdentifier: ReviewItemCell.identifier)
+        tableView.register(PricingCell.self, forCellReuseIdentifier: PricingCell.identifier)
+
+        // 2. Set delegate and datasource AFTER registration
+        tableView.delegate = self
+        tableView.dataSource = self
+
         totalPaymentLabel.snp.makeConstraints { make in
             make.top.equalToSuperview().offset(16)
             make.leading.equalToSuperview().offset(20)
         }
-        
+
         finalTotalLabel.snp.makeConstraints { make in
             make.top.equalTo(totalPaymentLabel.snp.bottom).offset(2)
             make.leading.equalToSuperview().offset(20)
+            // FIXED: Anchor to Safe Area Bottom to handle Home Indicator padding
+            make.bottom.equalTo(view.safeAreaLayoutGuide.snp.bottom).offset(-16)
         }
-        
+
         payButton.snp.makeConstraints { make in
-            make.centerY.equalTo(finalTotalLabel)
+            // FIXED: Centering on the whole text block or the final label
+            make.centerY.equalTo(finalTotalLabel.snp.top).offset(0)
             make.trailing.equalToSuperview().offset(-20)
-            make.width.equalTo(120)
-            make.height.equalTo(44)
+            make.width.equalTo(140) // Industry standard width
+            make.height.equalTo(50)  // Industry standard "Thumb" height
         }
-        
+
+        // 3. FIXED: TableView Constraint
         tableView.snp.makeConstraints { make in
             make.top.leading.trailing.equalToSuperview()
             make.bottom.equalTo(bottomBar.snp.top)
         }
-        
+
+        // 4. FIXED: Empty State should cover everything
         emptyStateView.snp.makeConstraints { make in
-            make.top.equalTo(view.safeAreaLayoutGuide)
-            make.leading.trailing.bottom.equalToSuperview()
+            make.edges.equalTo(view.safeAreaLayoutGuide)
         }
-        
-        emptyStateView.shopButton.addTarget(self, action: #selector(handleMulaiBelanja), for: .touchUpInside)
-        payButton.addTarget(self, action: #selector(didTapPay), for: .touchUpInside)
-        
-        emptyStateView.recommendationsCollectionView.delegate = self
-        emptyStateView.recommendationsCollectionView.dataSource = self
     }
     
     private func fetchRecommendations() {
@@ -476,13 +483,20 @@ final class PricingCell: UITableViewCell {
         stack.addArrangedSubview(createRow(label: "Voucher", value: "- Rp0"))
     }
     
-    private func createRow(label: String, value: String) -> UIStackView {
+    private func createRow(label: String, value: String, isTotal: Bool = false) -> UIStackView {
         let l = UILabel()
-        l.text = label; l.font = Brand.Typography.body(size: 14)
+        l.text = label
+        l.font = isTotal ? Brand.Typography.subheader(size: 16) : Brand.Typography.body(size: 14)
+
         let v = UILabel()
-        v.text = value; v.font = Brand.Typography.body(size: 14)
+        v.text = value
+        v.font = isTotal ? Brand.Typography.subheader(size: 16) : Brand.Typography.body(size: 14)
+        // Optional: v.textColor = isTotal ? Brand.Colours.emerald : .label
+
         let stack = UIStackView(arrangedSubviews: [l, v])
-        stack.axis = .horizontal; stack.distribution = .equalSpacing
+        stack.axis = .horizontal
+        stack.distribution = .equalSpacing
         return stack
     }
+
 }
