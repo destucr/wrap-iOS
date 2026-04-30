@@ -1,11 +1,23 @@
 import Foundation
 import FirebaseMessaging
+import FirebaseAuth
 
 @MainActor // Ensures thread-safe access to UserDefaults and NetworkManager calls
 class AuthManager {
     static let shared = AuthManager()
 
     private let biometricsPrefKey = "com.wrap.biometricsEnabled"
+    private let userRoleKey = "com.wrap.userRole"
+
+    var userRole: UserRole {
+        get {
+            let rawValue = UserDefaults.standard.string(forKey: userRoleKey) ?? UserRole.customer.rawValue
+            return UserRole(rawValue: rawValue) ?? .customer
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: userRoleKey)
+        }
+    }
 
     var isBiometricsEnabled: Bool {
         get { UserDefaults.standard.bool(forKey: biometricsPrefKey) }
@@ -21,10 +33,14 @@ class AuthManager {
         NetworkManager.shared.setAuthToken(response.token)
         setRefreshToken(response.refreshToken)
         self.isBiometricsEnabled = response.biometricsEnabled
+        self.userRole = response.role
 
         if let fcmToken = Messaging.messaging().fcmToken {
             try? await syncFCMToken(fcmToken)
         }
+
+        // Populate user's saved cart after successful login
+        try? await CartManager.shared.fetchCart()
 
         return response
     }
@@ -44,15 +60,34 @@ class AuthManager {
         return nil
     }
 
-    func googleLogin(idToken: String) async throws {
-        NetworkManager.shared.setAuthToken(idToken)
-
-        if let fcmToken = Messaging.messaging().fcmToken {
-            try await UserService.shared.syncUser(fcmToken: fcmToken)
-            // Fetch profile to get biometrics status after sync
-            let user = try await UserService.shared.fetchProfile()
-            self.isBiometricsEnabled = user.biometricsEnabled
+    func googleLogin(idToken: String, accessToken: String) async throws {
+        // 1. Exchange Google Credentials for Firebase Credentials
+        let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
+        
+        // 2. Sign in to Firebase on the device
+        let authResult = try await Auth.auth().signIn(with: credential)
+        
+        // 3. Get the actual Firebase ID Token (this is what the backend expects)
+        let firebaseIDToken = try await authResult.user.getIDToken()
+        
+        // 4. Update local session
+        NetworkManager.shared.setAuthToken(firebaseIDToken)
+        
+        // Firebase Auth result user has a refreshToken we should save
+        if let refreshToken = authResult.user.refreshToken {
+            setRefreshToken(refreshToken)
         }
+
+        // 5. Sync with backend (This creates/updates the user in Postgres)
+        let fcmToken = Messaging.messaging().fcmToken ?? ""
+        let user = try await UserService.shared.syncUser(fcmToken: fcmToken)
+        
+        // Sync local biometric preference with backend
+        self.isBiometricsEnabled = user.biometricsEnabled
+        self.userRole = user.role
+
+        // Populate user's saved cart after successful login
+        try? await CartManager.shared.fetchCart()
     }
 
     func saveCredentials(email: String, password: String) {

@@ -136,6 +136,7 @@ final class ProfileViewController: UIViewController {
             Task {
                 try? await UserService.shared.logout()
                 NetworkManager.shared.setAuthToken("")
+                CartManager.shared.clear()
                 self.coordinator?.showLogin()
             }
         }))

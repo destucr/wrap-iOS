@@ -9,10 +9,10 @@ class UserService {
         return try await NetworkManager.shared.request(endpoint: "/user/profile")
     }
     
-    func syncUser(fcmToken: String) async throws {
+    func syncUser(fcmToken: String) async throws -> UserData {
         let payload = ["fcm_token": fcmToken]
         let body = try JSONSerialization.data(withJSONObject: payload)
-        let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: body)
+        return try await NetworkManager.shared.request(endpoint: "/user/sync", method: "POST", body: body)
     }
     
     func fetchOrderHistory() async throws -> [Order] {

@@ -1,5 +1,7 @@
 import UIKit
+import LocalAuthentication
 import SnapKit
+import GoogleSignIn
 
 class LoginViewController: UIViewController {
     
@@ -101,10 +103,14 @@ class LoginViewController: UIViewController {
     
     private let activityIndicator = UIActivityIndicatorView(style: .medium)
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        checkBiometricPreference()
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        checkBiometricPreference()
     }
     
     private func setupUI() {
@@ -160,9 +166,37 @@ class LoginViewController: UIViewController {
     @objc private func handleGoogleSignIn() {
         setLoading(true)
         
-        // Placeholder for GIDSignIn.sharedInstance.signIn
-        // Upon success, get the idToken and call:
-        // try await AuthManager.shared.googleLogin(idToken: token)
+        GIDSignIn.sharedInstance.signIn(withPresenting: self) { [weak self] result, error in
+            guard let self = self else { return }
+            
+            if let error = error {
+                self.setLoading(false)
+                // Ignore if user cancelled
+                if (error as NSError).code != GIDSignInError.canceled.rawValue {
+                    self.showAlert(message: "Google Sign-In failed: \(error.localizedDescription)")
+                }
+                return
+            }
+            
+            guard let user = result?.user, 
+                  let idToken = user.idToken?.tokenString else {
+                self.setLoading(false)
+                return
+            }
+            
+            let accessToken = user.accessToken.tokenString
+            
+            Task {
+                do {
+                    try await AuthManager.shared.googleLogin(idToken: idToken, accessToken: accessToken)
+                    self.setLoading(false)
+                    self.coordinator?.showCatalog()
+                } catch {
+                    self.setLoading(false)
+                    self.showAlert(message: "Backend verification failed: \(error.localizedDescription)")
+                }
+            }
+        }
     }
     
     private func checkBiometricPreference() {
@@ -180,18 +214,27 @@ class LoginViewController: UIViewController {
             return
         }
         
+        setLoading(true)
+        
         BiometricManager.shared.authenticate(reason: "Login to Wrap") { [weak self] success, error in
+            guard let self = self else { return }
+            
             if success {
-                Task {
+                Task { [weak self] in
                     do {
                         _ = try await AuthManager.shared.login(email: credentials.email, password: credentials.password)
+                        self?.setLoading(false)
                         self?.coordinator?.showCatalog()
                     } catch {
+                        self?.setLoading(false)
                         self?.showAlert(message: "Biometric login failed. Please use your password.")
                     }
                 }
-            } else if let error = error {
-                print("Biometric Authentication Failed: \(error.localizedDescription)")
+            } else {
+                self.setLoading(false)
+                if let error = error as? LAError, error.code != .userCancel {
+                    self.showAlert(message: "Authentication failed: \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -202,19 +245,19 @@ class LoginViewController: UIViewController {
         
         setLoading(true)
         
-        Task {
+        Task { [weak self] in
             do {
                 let response = try await AuthManager.shared.login(email: email, password: password)
                 
                 // Save credentials to Keychain for future Biometric Logins
                 AuthManager.shared.saveCredentials(email: email, password: password)
                 
-                setLoading(false)
+                self?.setLoading(false)
                 print("Login Success! Token: \(response.token)")
-                coordinator?.showCatalog()
+                self?.coordinator?.showCatalog()
             } catch {
-                setLoading(false)
-                showAlert(message: "Login failed: \(error)")
+                self?.setLoading(false)
+                self?.showAlert(message: "Login failed: \(error.localizedDescription)")
             }
         }
     }

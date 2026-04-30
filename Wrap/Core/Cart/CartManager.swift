@@ -1,6 +1,8 @@
 import Foundation
 import SwiftData
 import UIKit
+import RxSwift
+import RxRelay
 
 // 1. Explicitly nonisolated and Sendable for background network decoding
 nonisolated struct OrderResponse: Codable, Sendable {
@@ -17,6 +19,22 @@ nonisolated struct OrderResponse: Codable, Sendable {
     }
 }
 
+nonisolated struct CartItemResponse: Codable, Sendable {
+    let variantId: UUID
+    let quantity: Int
+    let name: String
+    let price: Double
+    
+    nonisolated enum CodingKeys: String, CodingKey {
+        case variantId = "variant_id"
+        case quantity, name, price
+    }
+}
+
+nonisolated struct CartResponse: Codable, Sendable {
+    let items: [CartItemResponse]
+}
+
 @MainActor
 class CartManager: Sendable {
     static let shared = CartManager()
@@ -25,10 +43,37 @@ class CartManager: Sendable {
     private var isSyncing = false
     private var _idempotencyKey: String?
     
-    private init() {}
+    // RxSwift Infrastructure
+    private let disposeBag = DisposeBag()
+    private let itemsRelay = BehaviorRelay<[CartItem]>(value: [])
+    
+    var cartItems: Observable<[CartItem]> {
+        return itemsRelay.asObservable()
+    }
+    
+    private init() {
+        setupSyncSubscription()
+    }
     
     func setup(context: ModelContext) {
         self.context = context
+        refreshRelay()
+    }
+
+    private func setupSyncSubscription() {
+        cartItems
+            .skip(1) // Skip initial value
+            .debounce(.seconds(2), scheduler: MainScheduler.instance)
+            .subscribe(onNext: { [weak self] _ in
+                Task {
+                    try? await self?.syncWithBackend()
+                }
+            })
+            .disposed(by: disposeBag)
+    }
+
+    private func refreshRelay() {
+        itemsRelay.accept(items)
     }
 
     var idempotencyKey: String {
@@ -89,6 +134,7 @@ class CartManager: Sendable {
             // Force process changes to ensure other queries see it immediately
             context.processPendingChanges()
             _idempotencyKey = nil
+            refreshRelay()
             NotificationCenter.default.post(name: .cartUpdated, object: nil)
         } catch {
             print("Failed to save cart: \(error)")
@@ -128,6 +174,23 @@ class CartManager: Sendable {
     }
     
     // MARK: - Sync Logic
+    func fetchCart() async throws {
+        let response: CartResponse = try await NetworkManager.shared.request(endpoint: "/user/cart")
+        
+        guard let context = context else { return }
+        
+        // Clear local first
+        try? context.delete(model: CartItem.self)
+        
+        // Insert new ones
+        for it in response.items {
+            let newItem = CartItem(variantId: it.variantId, name: it.name, price: it.price, quantity: it.quantity)
+            context.insert(newItem)
+        }
+        
+        saveAndNotify()
+    }
+
     func syncWithBackend() async throws {
         guard !isSyncing else { return }
         isSyncing = true

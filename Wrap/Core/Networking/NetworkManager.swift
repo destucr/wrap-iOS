@@ -1,4 +1,7 @@
 import Foundation
+import UIKit
+import RxSwift
+import RxRelay
 
 enum NetworkError: Error {
     case invalidURL
@@ -10,10 +13,22 @@ enum NetworkError: Error {
     case conflict     // 409
 }
 
+enum AuthStatus {
+    case authenticated
+    case unauthorized
+}
+
 @MainActor
 class NetworkManager {
     static let shared = NetworkManager()
     private let baseURL = Environment.baseURL.absoluteString
+    
+    // RxSwift Infrastructure
+    private let authStatusRelay = BehaviorRelay<AuthStatus>(value: .authenticated)
+    var authStatus: Observable<AuthStatus> {
+        return authStatusRelay.asObservable()
+    }
+
     private var authToken: String? {
         didSet {
             if let data = authToken?.data(using: .utf8) {
@@ -30,7 +45,10 @@ class NetworkManager {
         }
     }
 
-    func setAuthToken(_ token: String) { self.authToken = token.isEmpty ? nil : token }
+    func setAuthToken(_ token: String) { 
+        self.authToken = token.isEmpty ? nil : token 
+        authStatusRelay.accept(token.isEmpty ? .unauthorized : .authenticated)
+    }
     func hasValidToken() -> Bool { authToken != nil }
 
     @discardableResult
@@ -125,6 +143,7 @@ class NetworkManager {
             await MainActor.run {
                 self.setAuthToken("")
                 AuthManager.shared.setRefreshToken("")
+                self.authStatusRelay.accept(.unauthorized)
                 // Notify UI to show login if needed
                 NotificationCenter.default.post(name: .unauthorizedAccess, object: nil)
             }

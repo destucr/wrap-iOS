@@ -2,21 +2,34 @@ import UIKit
 
 class MainTabBarController: UITabBarController {
     
-    private var homeCoordinator: HomeCoordinator
-    private var checkoutCoordinator: CheckoutCoordinator
-    private var ordersCoordinator: OrdersCoordinator
-    private var profileCoordinator: ProfileCoordinator
+    private var homeCoordinator: HomeCoordinator?
+    private var checkoutCoordinator: CheckoutCoordinator?
+    private var ordersCoordinator: OrdersCoordinator?
+    private var profileCoordinator: ProfileCoordinator?
+    private var role: UserRole
     
-    init(mainCoordinator: MainCoordinator) {
-        self.homeCoordinator = HomeCoordinator(navigationController: UINavigationController())
-        self.checkoutCoordinator = CheckoutCoordinator(navigationController: UINavigationController())
-        self.ordersCoordinator = OrdersCoordinator(navigationController: UINavigationController())
-        self.profileCoordinator = ProfileCoordinator(navigationController: UINavigationController())
+    init(mainCoordinator: MainCoordinator, role: UserRole) {
+        self.role = role
         
-        homeCoordinator.parentCoordinator = mainCoordinator
-        checkoutCoordinator.parentCoordinator = mainCoordinator
-        ordersCoordinator.parentCoordinator = mainCoordinator
-        profileCoordinator.parentCoordinator = mainCoordinator
+        // Always need Profile
+        self.profileCoordinator = ProfileCoordinator(navigationController: UINavigationController())
+        profileCoordinator?.parentCoordinator = mainCoordinator
+        
+        if role == .driver {
+            // Driver only needs Logistics and Profile
+            // (LogisticsCoordinator will be implemented next)
+            self.ordersCoordinator = OrdersCoordinator(navigationController: UINavigationController())
+            ordersCoordinator?.parentCoordinator = mainCoordinator
+        } else {
+            // Customer needs the full shopping experience
+            self.homeCoordinator = HomeCoordinator(navigationController: UINavigationController())
+            self.checkoutCoordinator = CheckoutCoordinator(navigationController: UINavigationController())
+            self.ordersCoordinator = OrdersCoordinator(navigationController: UINavigationController())
+            
+            homeCoordinator?.parentCoordinator = mainCoordinator
+            checkoutCoordinator?.parentCoordinator = mainCoordinator
+            ordersCoordinator?.parentCoordinator = mainCoordinator
+        }
         
         super.init(nibName: nil, bundle: nil)
     }
@@ -50,8 +63,10 @@ class MainTabBarController: UITabBarController {
             tabBar.isTranslucent = false
         }
         
-        NotificationCenter.default.addObserver(self, selector: #selector(cartDidUpdate), name: .cartUpdated, object: nil)
-        updateCartBadge()
+        if role == .customer {
+            NotificationCenter.default.addObserver(self, selector: #selector(cartDidUpdate), name: .cartUpdated, object: nil)
+            updateCartBadge()
+        }
     }
     
     @objc private func cartDidUpdate() {
@@ -59,7 +74,7 @@ class MainTabBarController: UITabBarController {
     }
     
     private func updateCartBadge() {
-        if let cartTab = tabBar.items?[1] {
+        if role == .customer, let cartTab = tabBar.items?[safe: 1] {
             let count = CartManager.shared.totalCount
             cartTab.badgeValue = count > 0 ? "\(count)" : nil
             cartTab.badgeColor = Brand.primary
@@ -68,45 +83,66 @@ class MainTabBarController: UITabBarController {
     
     private func setupTabs() {
         let config = UIImage.SymbolConfiguration(pointSize: 24, weight: .medium)
+        var viewControllers: [UIViewController] = []
         
-        // 1. Catalog Tab
-        homeCoordinator.start()
-        homeCoordinator.navigationController.tabBarItem = UITabBarItem(
-            title: "Shop",
-            image: UIImage(systemName: "bag", withConfiguration: config),
-            selectedImage: UIImage(systemName: "bag.fill", withConfiguration: config)
-        )
+        if role == .driver {
+            // 1. Driver Queue (Using Orders for now as placeholder)
+            if let orders = ordersCoordinator {
+                orders.start()
+                orders.navigationController.tabBarItem = UITabBarItem(
+                    title: "Queue",
+                    image: UIImage(systemName: "shippingbox", withConfiguration: config),
+                    selectedImage: UIImage(systemName: "shippingbox.fill", withConfiguration: config)
+                )
+                viewControllers.append(orders.navigationController)
+            }
+        } else {
+            // 1. Catalog Tab
+            if let home = homeCoordinator {
+                home.start()
+                home.navigationController.tabBarItem = UITabBarItem(
+                    title: "Shop",
+                    image: UIImage(systemName: "bag", withConfiguration: config),
+                    selectedImage: UIImage(systemName: "bag.fill", withConfiguration: config)
+                )
+                viewControllers.append(home.navigationController)
+            }
+            
+            // 2. Cart Tab
+            if let checkout = checkoutCoordinator {
+                checkout.start()
+                checkout.navigationController.tabBarItem = UITabBarItem(
+                    title: "Cart",
+                    image: UIImage(systemName: "cart", withConfiguration: config),
+                    selectedImage: UIImage(systemName: "cart.fill", withConfiguration: config)
+                )
+                viewControllers.append(checkout.navigationController)
+            }
+            
+            // 3. Orders Tab
+            if let orders = ordersCoordinator {
+                orders.start()
+                orders.navigationController.tabBarItem = UITabBarItem(
+                    title: "Orders",
+                    image: UIImage(systemName: "clock", withConfiguration: config),
+                    selectedImage: UIImage(systemName: "clock.fill", withConfiguration: config)
+                )
+                viewControllers.append(orders.navigationController)
+            }
+        }
         
-        // 2. Cart Tab
-        checkoutCoordinator.start()
-        checkoutCoordinator.navigationController.tabBarItem = UITabBarItem(
-            title: "Cart",
-            image: UIImage(systemName: "cart", withConfiguration: config),
-            selectedImage: UIImage(systemName: "cart.fill", withConfiguration: config)
-        )
+        // 4. Profile Tab (Common)
+        if let profile = profileCoordinator {
+            profile.start()
+            profile.navigationController.tabBarItem = UITabBarItem(
+                title: "Profile",
+                image: UIImage(systemName: "person.circle", withConfiguration: config),
+                selectedImage: UIImage(systemName: "person.circle.fill", withConfiguration: config)
+            )
+            viewControllers.append(profile.navigationController)
+        }
         
-        // 3. Orders Tab
-        ordersCoordinator.start()
-        ordersCoordinator.navigationController.tabBarItem = UITabBarItem(
-            title: "Orders",
-            image: UIImage(systemName: "clock", withConfiguration: config),
-            selectedImage: UIImage(systemName: "clock.fill", withConfiguration: config)
-        )
-        
-        // 4. Profile Tab
-        profileCoordinator.start()
-        profileCoordinator.navigationController.tabBarItem = UITabBarItem(
-            title: "Profile",
-            image: UIImage(systemName: "person.circle", withConfiguration: config),
-            selectedImage: UIImage(systemName: "person.circle.fill", withConfiguration: config)
-        )
-        
-        viewControllers = [
-            homeCoordinator.navigationController,
-            checkoutCoordinator.navigationController,
-            ordersCoordinator.navigationController,
-            profileCoordinator.navigationController
-        ]
+        self.viewControllers = viewControllers
     }
 }
 

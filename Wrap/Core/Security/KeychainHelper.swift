@@ -7,14 +7,25 @@ class KeychainHelper {
     
     func save(_ data: Data, service: String, account: String) {
         let query = [
-            kSecValueData: data,
             kSecClass: kSecClassGenericPassword,
             kSecAttrService: service,
             kSecAttrAccount: account
         ] as CFDictionary
         
-        SecItemDelete(query) // Clear existing
-        SecItemAdd(query, nil)
+        let attributesToUpdate = [kSecValueData: data] as CFDictionary
+        
+        let status = SecItemUpdate(query, attributesToUpdate)
+        
+        if status == errSecItemNotFound {
+            let addQuery = [
+                kSecValueData: data,
+                kSecClass: kSecClassGenericPassword,
+                kSecAttrService: service,
+                kSecAttrAccount: account,
+                kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlock
+            ] as CFDictionary
+            SecItemAdd(addQuery, nil)
+        }
     }
     
     func read(service: String, account: String) -> Data? {

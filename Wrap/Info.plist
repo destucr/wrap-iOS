@@ -2,6 +2,34 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.destu.Wrap</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.180841326805-0m78ll3b5jsb7ebegkijrh79ha6q0jg6</string>
+			</array>
+		</dict>
+	</array>
+	<key>GIDClientID</key>
+	<string>180841326805-0m78ll3b5jsb7ebegkijrh79ha6q0jg6.apps.googleusercontent.com</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>104.43.92.71</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -21,34 +49,8 @@
 			</array>
 		</dict>
 	</dict>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSExceptionDomains</key>
-		<dict>
-			<key>104.43.92.71</key>
-			<dict>
-				<key>NSExceptionAllowsInsecureHTTPLoads</key>
-				<true/>
-				<key>NSIncludesSubdomains</key>
-				<true/>
-			</dict>
-		</dict>
-	</dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>We need your location to deliver your order to your doorstep.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>Wrap uses FaceID to provide a fast and secure login experience for your account.</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>wrapapp</string>
-			</array>
-			<key>CFBundleURLName</key>
-			<string>com.destu.Wrap</string>
-		</dict>
-	</array>
+	<key>UIBackgroundModes</key>
+	<array/>
 	<key>UIDesignRequiresCompatibility</key>
 	<true/>
 </dict>

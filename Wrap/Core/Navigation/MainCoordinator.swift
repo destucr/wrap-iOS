@@ -43,7 +43,8 @@ class MainCoordinator: Coordinator {
             return
         }
         
-        let tabBar = MainTabBarController(mainCoordinator: self)
+        let role = AuthManager.shared.userRole
+        let tabBar = MainTabBarController(mainCoordinator: self, role: role)
         
         UIView.transition(with: window!, duration: 0.3, options: .transitionCrossDissolve, animations: {
             self.window?.rootViewController = tabBar

@@ -20,7 +20,10 @@ enum Brand {
         static func body(size: CGFloat = 16) -> UIFont {
             return .systemFont(ofSize: size, weight: .regular)
         }
-        
+        static func caption(size: CGFloat = 12) -> UIFont {
+            return .systemFont(ofSize: size, weight: .thin)
+        }
+
         // Redesign Specifics
         static func productName() -> UIFont {
             return .systemFont(ofSize: 14, weight: .semibold)
