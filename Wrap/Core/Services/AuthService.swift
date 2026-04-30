@@ -7,8 +7,11 @@ class AuthService {
     private init() {}
     
     func login(email: String, password: String) async throws -> AuthResponse {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         let deviceID = UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
-        let payload = ["email": email, "password": password, "device_id": deviceID]
+        let payload = ["email": trimmedEmail, "password": trimmedPassword, "device_id": deviceID]
         let body = try JSONSerialization.data(withJSONObject: payload)
         return try await NetworkManager.shared.request(endpoint: "/auth/login", method: "POST", body: body)
     }
