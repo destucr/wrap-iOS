@@ -51,18 +51,30 @@ final class PaymentMethodsViewController: UIViewController {
     }
     
     private func startLinking(channelCode: String) {
+        activityIndicator.startAnimating()
         Task {
             do {
                 let urlString = try await PaymentService.shared.initializeLinking(channelCode: channelCode)
+                activityIndicator.stopAnimating()
                 if let url = URL(string: urlString) {
                     let safariVC = SFSafariViewController(url: url)
                     safariVC.delegate = self
                     present(safariVC, animated: true)
+                } else {
+                    showAlert(message: "Failed to parse redirect URL.")
                 }
             } catch {
+                activityIndicator.stopAnimating()
                 print("Failed to initialize linking: \(error)")
+                showAlert(message: "Gagal menghubungkan akun: \(error.localizedDescription)")
             }
         }
+    }
+    
+    private func showAlert(message: String) {
+        let alert = UIAlertController(title: "Informasi", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 }
 

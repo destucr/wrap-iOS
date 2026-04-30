@@ -11,6 +11,7 @@
 			<string>com.destu.Wrap</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>wrapapp</string>
 				<string>com.googleusercontent.apps.180841326805-0m78ll3b5jsb7ebegkijrh79ha6q0jg6</string>
 			</array>
 		</dict>
