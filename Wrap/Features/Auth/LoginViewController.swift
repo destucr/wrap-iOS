@@ -256,6 +256,7 @@ class LoginViewController: UIViewController {
                 print("Login Success! Token: \(response.token)")
                 self?.coordinator?.showCatalog()
             } catch {
+                print("❌ [UI] Login Action Failed: \(error)")
                 self?.setLoading(false)
                 self?.showAlert(message: "Login failed: \(error.localizedDescription)")
             }

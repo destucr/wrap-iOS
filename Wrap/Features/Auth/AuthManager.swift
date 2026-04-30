@@ -27,7 +27,9 @@ class AuthManager {
     private init() {}
 
     func login(email: String, password: String) async throws -> AuthResponse {
+        print("🔐 [Auth] Starting login for \(email)...")
         let response = try await AuthService.shared.login(email: email, password: password)
+        print("✅ [Auth] Login successful. User ID: \(response.id)")
 
         // Await needed because NetworkManager is @MainActor
         NetworkManager.shared.setAuthToken(response.token)
@@ -36,10 +38,12 @@ class AuthManager {
         self.userRole = response.role
 
         if let fcmToken = Messaging.messaging().fcmToken {
+            print("📲 [Auth] Syncing FCM Token...")
             try? await syncFCMToken(fcmToken)
         }
 
         // Populate user's saved cart after successful login
+        print("🛒 [Auth] Fetching saved cart...")
         try? await CartManager.shared.fetchCart()
 
         return response

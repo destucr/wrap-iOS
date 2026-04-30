@@ -96,6 +96,11 @@ class NetworkManager {
             throw NetworkError.serverError("No Response")
         }
 
+        print("🌐 [Network] \(method) \(endpoint) -> Status: \(httpResponse.statusCode)")
+        if let jsonString = String(data: data, encoding: .utf8) {
+            print("📄 [Network] Response Body: \(jsonString)")
+        }
+
         if httpResponse.statusCode == 401 {
             throw NetworkError.unauthorized
         }
