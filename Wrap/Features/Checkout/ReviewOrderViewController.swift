@@ -287,7 +287,22 @@ final class ReviewOrderViewController: UIViewController {
     }
     
     @objc private func didTapPay() {
-...
+        payButton.isEnabled = false
+        payButton.alpha = 0.5
+        payButton.setTitle("Memproses...", for: .normal)
+        
+        Task {
+            do {
+                let address: [String: String] = [
+                    "street": "Jl. Merdeka No. 12",
+                    "floor_unit": "402",
+                    "postal_code": "12345"
+                ]
+                let response = try await CartManager.shared.placeOrder(address: address, linkedAccountId: selectedAccount?.id)
+                CartManager.shared.clear()
+                
+                if response.paymentUrl == "DIRECT_DEBIT_PAID" {
+                    coordinator?.showOrderTracking(orderId: response.orderId.uuidString)
                 } else if selectedAccount != nil, let url = URL(string: response.paymentUrl) {
                     // REQUIRES_ACTION flow for Linked Accounts (OVO/DANA PIN)
                     // ELITE: Use ASWebAuthenticationSession for an "in-app" feel with automatic redirect capture
