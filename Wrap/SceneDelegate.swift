@@ -20,7 +20,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             print("Failed to setup SwiftData: \(error)")
         }
         
-        let navController = UINavigationController()
+        let navController = WrapNavigationController()
         window = UIWindow(windowScene: windowScene)
         
         coordinator = MainCoordinator(navigationController: navController, window: window)

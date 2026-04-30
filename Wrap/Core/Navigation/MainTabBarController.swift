@@ -12,19 +12,19 @@ class MainTabBarController: UITabBarController {
         self.role = role
         
         // Always need Profile
-        self.profileCoordinator = ProfileCoordinator(navigationController: UINavigationController())
+        self.profileCoordinator = ProfileCoordinator(navigationController: WrapNavigationController())
         profileCoordinator?.parentCoordinator = mainCoordinator
         
         if role == .driver {
             // Driver only needs Logistics and Profile
             // (LogisticsCoordinator will be implemented next)
-            self.ordersCoordinator = OrdersCoordinator(navigationController: UINavigationController())
+            self.ordersCoordinator = OrdersCoordinator(navigationController: WrapNavigationController())
             ordersCoordinator?.parentCoordinator = mainCoordinator
         } else {
             // Customer needs the full shopping experience
-            self.homeCoordinator = HomeCoordinator(navigationController: UINavigationController())
-            self.checkoutCoordinator = CheckoutCoordinator(navigationController: UINavigationController())
-            self.ordersCoordinator = OrdersCoordinator(navigationController: UINavigationController())
+            self.homeCoordinator = HomeCoordinator(navigationController: WrapNavigationController())
+            self.checkoutCoordinator = CheckoutCoordinator(navigationController: WrapNavigationController())
+            self.ordersCoordinator = OrdersCoordinator(navigationController: WrapNavigationController())
             
             homeCoordinator?.parentCoordinator = mainCoordinator
             checkoutCoordinator?.parentCoordinator = mainCoordinator
