@@ -46,11 +46,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
     
     private func handleURL(_ url: URL) {
-        // Expected: wrapapp://payment/success
+        // Expected: wrapapp://payment/success?order_id=uuid
         guard url.scheme == "wrapapp" else { return }
         
         if url.host == "payment", url.path == "/success" {
-            coordinator?.showOrderTracking(orderId: "LATEST")
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            let orderId = components?.queryItems?.first(where: { $0.name == "order_id" })?.value ?? "LATEST"
+            coordinator?.showOrderTracking(orderId: orderId)
         }
     }
 }
