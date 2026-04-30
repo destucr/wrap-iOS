@@ -135,7 +135,7 @@ final class ProfileViewController: UIViewController {
         alert.addAction(UIAlertAction(title: "Logout", style: .destructive, handler: { _ in
             Task {
                 try? await UserService.shared.logout()
-                NetworkManager.shared.setAuthToken("")
+                AuthManager.shared.logout()
                 CartManager.shared.clear()
                 self.coordinator?.showLogin()
             }

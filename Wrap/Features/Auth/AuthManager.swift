@@ -116,4 +116,10 @@ class AuthManager {
         guard NetworkManager.shared.hasValidToken() else { return }
         try await UserService.shared.syncUser(fcmToken: fcmToken)
     }
+
+    func logout() {
+        NetworkManager.shared.setAuthToken("")
+        setRefreshToken("")
+        UserDefaults.standard.removeObject(forKey: userRoleKey)
+    }
 }

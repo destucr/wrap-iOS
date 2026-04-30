@@ -175,6 +175,7 @@ class CartManager: Sendable {
     
     // MARK: - Sync Logic
     func fetchCart() async throws {
+        guard NetworkManager.shared.hasValidToken() else { return }
         let response: CartResponse = try await NetworkManager.shared.request(endpoint: "/user/cart")
         
         guard let context = context else { return }
@@ -193,6 +194,8 @@ class CartManager: Sendable {
 
     func syncWithBackend() async throws {
         guard !isSyncing else { return }
+        guard NetworkManager.shared.hasValidToken() else { return }
+        
         isSyncing = true
         defer { isSyncing = false }
         
