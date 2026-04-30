@@ -280,34 +280,31 @@ final class ReviewOrderViewController: UIViewController {
         tabBarController?.selectedIndex = 0
     }
     
+    private func resetPayButton() {
+        payButton.isEnabled = true
+        payButton.alpha = 1.0
+        payButton.setTitle("Bayar Sekarang", for: .normal)
+    }
+    
     @objc private func didTapPay() {
-        payButton.isEnabled = false
-        payButton.alpha = 0.5
-        payButton.setTitle("Memproses...", for: .normal)
-        
-        Task {
-            do {
-                let address: [String: String] = [
-                    "street": "Jl. Merdeka No. 12",
-                    "floor_unit": "402",
-                    "postal_code": "12345"
-                ]
-                let response = try await CartManager.shared.placeOrder(address: address, linkedAccountId: selectedAccount?.id)
-                CartManager.shared.clear()
-                
-                if response.paymentUrl == "DIRECT_DEBIT_PAID" {
-                    coordinator?.showOrderTracking(orderId: response.orderId.uuidString)
+...
                 } else if selectedAccount != nil, let url = URL(string: response.paymentUrl) {
                     // REQUIRES_ACTION flow for Linked Accounts (OVO/DANA PIN)
                     // ELITE: Use ASWebAuthenticationSession for an "in-app" feel with automatic redirect capture
                     let session = ASWebAuthenticationSession(url: url, callbackURLScheme: "wrapapp") { [weak self] callbackURL, error in
-                        if let url = callbackURL, url.host == "payment", url.path == "/success" {
+                        if let url = callbackURL, url.absoluteString.contains("success") {
                             let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
                             let orderId = components?.queryItems?.first(where: { $0.name == "order_id" })?.value ?? response.orderId.uuidString
                             self?.coordinator?.showOrderSuccess(orderId: orderId, paymentUrl: "DIRECT_DEBIT_PAID")
-                        } else if error == nil {
-                            // User finished but maybe not success? Navigate to History anyway
-                            self?.coordinator?.showOrderHistory()
+                        } else {
+                            // Reset state if cancelled, failed, or not success
+                            self?.resetPayButton()
+                            if error == nil && callbackURL == nil {
+                                // User just closed the session
+                            } else if let url = callbackURL {
+                                // User reached a page but it wasn't success (maybe failure URL)
+                                self?.coordinator?.showOrderHistory()
+                            }
                         }
                     }
                     session.presentationContextProvider = self
@@ -319,9 +316,7 @@ final class ReviewOrderViewController: UIViewController {
                 }
             } catch {
                 print("Order placement failed: \(error)")
-                payButton.isEnabled = true
-                payButton.alpha = 1.0
-                payButton.setTitle("Bayar Sekarang", for: .normal)
+                self.resetPayButton()
                 
                 let alert = UIAlertController(title: "Gagal", message: "Gagal membuat pesanan. Silakan coba lagi.", preferredStyle: .alert)
                 alert.addAction(UIAlertAction(title: "OK", style: .default))
