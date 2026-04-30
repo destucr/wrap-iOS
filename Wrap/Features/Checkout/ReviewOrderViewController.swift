@@ -220,8 +220,10 @@ final class ReviewOrderViewController: UIViewController {
                 self.payButton.backgroundColor = response.isValid ? Brand.primary : .systemGray4
             } catch {
                 if Task.isCancelled { return }
-                self.payButton.isEnabled = true
-                self.payButton.backgroundColor = Brand.primary
+                print("Preview failed: \(error)")
+                self.payButton.isEnabled = false
+                self.payButton.backgroundColor = .systemGray4
+                // Optionally show a small hint or toast that preview failed
             }
         }
     }

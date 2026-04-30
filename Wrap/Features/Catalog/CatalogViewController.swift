@@ -176,6 +176,7 @@ class CatalogViewController: UIViewController {
         return tv
     }()
     
+    private let refreshControl = UIRefreshControl()
     private let activityIndicator = UIActivityIndicatorView(style: .large)
     
     override func viewDidLoad() {
@@ -188,6 +189,7 @@ class CatalogViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationController?.setNavigationBarHidden(false, animated: animated)
+        fetchCatalog(showLoading: false)
     }
     
     private func setupBindings() {
@@ -231,6 +233,9 @@ class CatalogViewController: UIViewController {
         view.addSubview(tableView)
         view.addSubview(activityIndicator)
         
+        tableView.refreshControl = refreshControl
+        refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
+        
         tableView.register(ProductCell.self, forCellReuseIdentifier: ProductCell.identifier)
         
         tableView.snp.makeConstraints { make in
@@ -244,15 +249,21 @@ class CatalogViewController: UIViewController {
         updateCartBadge()
     }
     
-    private func fetchCatalog() {
-        activityIndicator.startAnimating()
+    @objc private func handleRefresh() {
+        fetchCatalog(showLoading: false)
+    }
+    
+    private func fetchCatalog(showLoading: Bool = true) {
+        if showLoading { activityIndicator.startAnimating() }
         Task {
             do {
                 let fetchedProducts = try await CatalogService.shared.fetchProducts(categoryId: category?.id)
-                activityIndicator.stopAnimating()
+                if showLoading { activityIndicator.stopAnimating() }
+                refreshControl.endRefreshing()
                 self.productsRelay.accept(fetchedProducts)
             } catch {
-                activityIndicator.stopAnimating()
+                if showLoading { activityIndicator.stopAnimating() }
+                refreshControl.endRefreshing()
                 print("Failed to fetch catalog: \(error)")
             }
         }

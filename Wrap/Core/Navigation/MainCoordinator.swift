@@ -43,6 +43,9 @@ class MainCoordinator: Coordinator {
             return
         }
         
+        // Cleanup AuthCoordinators if they exist
+        childCoordinators.removeAll { $0 is AuthCoordinator }
+        
         let role = AuthManager.shared.userRole
         let tabBar = MainTabBarController(mainCoordinator: self, role: role)
         

@@ -88,12 +88,18 @@ class OrderHistoryViewController: UIViewController {
     weak var coordinator: MainCoordinator?
     private var orders: [Order] = []
     private let tableView = UITableView()
+    private let refreshControl = UIRefreshControl()
     private let activityIndicator = UIActivityIndicatorView(style: .large)
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         fetchOrders()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        fetchOrders(showLoading: false)
     }
     
     private func setupUI() {
@@ -105,6 +111,9 @@ class OrderHistoryViewController: UIViewController {
         
         tableView.delegate = self
         tableView.dataSource = self
+        tableView.refreshControl = refreshControl
+        refreshControl.addTarget(self, action: #selector(handleRefresh), for: .valueChanged)
+        
         tableView.register(OrderCell.self, forCellReuseIdentifier: OrderCell.identifier)
         
         tableView.snp.makeConstraints { make in
@@ -116,17 +125,23 @@ class OrderHistoryViewController: UIViewController {
             make.center.equalToSuperview()
         }
     }
+
+    @objc private func handleRefresh() {
+        fetchOrders(showLoading: false)
+    }
     
-    private func fetchOrders() {
-        activityIndicator.startAnimating()
+    private func fetchOrders(showLoading: Bool = true) {
+        if showLoading { activityIndicator.startAnimating() }
         Task {
             do {
                 let fetchedOrders = try await UserService.shared.fetchOrderHistory()
-                activityIndicator.stopAnimating()
+                if showLoading { activityIndicator.stopAnimating() }
+                refreshControl.endRefreshing()
                 self.orders = fetchedOrders.sorted(by: { $0.createdAt > $1.createdAt })
                 self.tableView.reloadData()
             } catch {
-                activityIndicator.stopAnimating()
+                if showLoading { activityIndicator.stopAnimating() }
+                refreshControl.endRefreshing()
                 print("Failed to fetch orders: \(error)")
             }
         }
