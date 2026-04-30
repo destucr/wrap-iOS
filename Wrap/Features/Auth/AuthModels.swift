@@ -19,7 +19,8 @@ nonisolated struct AuthResponse: Codable, Sendable {
     let role: UserRole
 
     enum CodingKeys: String, CodingKey {
-        case token, role, id
+        case token, role
+        case id = "user_id"
         case refreshToken = "refresh_token"
         case expiresIn = "expires_in"
         case isEmailVerified = "is_email_verified"
