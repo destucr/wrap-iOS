@@ -7,6 +7,8 @@ final class ReviewOrderViewController: UIViewController {
     weak var coordinator: MainCoordinator?
     private var recommendations: [Product] = []
     private var cartItems: [CartItem] = []
+    private var selectedAccount: LinkedAccount?
+    private var linkedAccounts: [LinkedAccount] = []
     private var previewResponse: CheckoutPreviewResponse?
     private var previewTask: Task<Void, Never>?
     
@@ -177,6 +179,38 @@ final class ReviewOrderViewController: UIViewController {
                 print("Failed to fetch recommendations: \(error)")
             }
         }
+    }
+    
+    private func fetchLinkedAccounts() {
+        Task {
+            do {
+                self.linkedAccounts = try await PaymentService.shared.fetchLinkedAccounts()
+                self.selectedAccount = self.linkedAccounts.first(where: { $0.status == "ACTIVE" })
+                self.tableView.reloadData()
+            } catch {
+                print("Failed to fetch accounts: \(error)")
+            }
+        }
+    }
+    
+    private func showPaymentMethodPicker() {
+        let alert = UIAlertController(title: "Pilih Metode Pembayaran", message: nil, preferredStyle: .actionSheet)
+        
+        for account in linkedAccounts {
+            let title = "\(account.channelCode.replacingOccurrences(of: "ID_", with: "")) - \(account.accountDetails)"
+            alert.addAction(UIAlertAction(title: title, style: .default, handler: { _ in
+                self.selectedAccount = account
+                self.tableView.reloadData()
+            }))
+        }
+        
+        alert.addAction(UIAlertAction(title: "Transfer Bank (Default)", style: .default, handler: { _ in
+            self.selectedAccount = nil
+            self.tableView.reloadData()
+        }))
+        
+        alert.addAction(UIAlertAction(title: "Batal", style: .cancel))
+        present(alert, animated: true)
     }
     
     private func updateUIState() {
@@ -624,6 +658,17 @@ final class PaymentMethodCell: UITableViewCell {
         methodLabel.snp.makeConstraints { make in make.trailing.equalTo(chevron.snp.leading).offset(-8); make.centerY.equalToSuperview() }
         chevron.snp.makeConstraints { make in make.trailing.equalToSuperview().offset(-16); make.centerY.equalToSuperview(); make.size.equalTo(14) }
     }
+    
+    func configure(with account: LinkedAccount) {
+        title.text = "Metode Pembayaran"
+        let channel = account.channelCode.replacingOccurrences(of: "ID_", with: "")
+        methodLabel.text = "\(channel) - \(account.accountDetails)"
+    }
+    
+    func configureDefault() {
+        title.text = "Metode Pembayaran"
+        methodLabel.text = "Transfer Bank"
+    }
 }
 
 final class PricingCell: UITableViewCell {
@@ -684,63 +729,6 @@ final class PricingCell: UITableViewCell {
         let view = UIView()
         let l = UILabel(); l.text = label
         l.font = isTotal ? .systemFont(ofSize: 15, weight: .semibold) : .systemFont(ofSize: 14)
-        
-        let v = UILabel(); v.text = value
-        v.font = isTotal ? .systemFont(ofSize: 15, weight: .thin) : .systemFont(ofSize: 14, weight: .thin)
-        v.textColor = valueColor ?? Brand.Text.primary
-        
-        view.addSubview(l); view.addSubview(v)
-        l.snp.makeConstraints { make in 
-            make.leading.equalToSuperview().offset(12)
-            make.top.bottom.equalToSuperview().inset(8)
-        }
-        v.snp.makeConstraints { make in 
-            make.trailing.equalToSuperview().offset(-12)
-            make.centerY.equalTo(l)
-        }
-        return view
-    }
-    
-    private func createDivider() -> UIView {
-        let v = UIView(); v.backgroundColor = UIColor(red: 0.90, green: 0.90, blue: 0.92, alpha: 1.0)
-        v.snp.makeConstraints { make in make.height.equalTo(1) }
-        return v
-    }
-}
-esponse.serviceFee.formattedIDR))
-        stack.addArrangedSubview(createDivider())
-        
-        stack.addArrangedSubview(createRow(label: "Total Pembayaran", value: response.total.formattedIDR, isTotal: true))
-    }
-    
-    private func createRow(label: String, value: String, isTotal: Bool = false, valueColor: UIColor? = nil) -> UIView {
-        let view = UIView()
-        let l = UILabel(); l.text = label
-        l.font = isTotal ? .systemFont(ofSize: 15, weight: .semibold) : .systemFont(ofSize: 14)
-        
-        let v = UILabel(); v.text = value
-        v.font = isTotal ? .systemFont(ofSize: 15, weight: .thin) : .systemFont(ofSize: 14, weight: .thin)
-        v.textColor = valueColor ?? Brand.Text.primary
-        
-        view.addSubview(l); view.addSubview(v)
-        l.snp.makeConstraints { make in 
-            make.leading.equalToSuperview().offset(12)
-            make.top.bottom.equalToSuperview().inset(8)
-        }
-        v.snp.makeConstraints { make in 
-            make.trailing.equalToSuperview().offset(-12)
-            make.centerY.equalTo(l)
-        }
-        return view
-    }
-    
-    private func createDivider() -> UIView {
-        let v = UIView(); v.backgroundColor = UIColor(red: 0.90, green: 0.90, blue: 0.92, alpha: 1.0)
-        v.snp.makeConstraints { make in make.height.equalTo(1) }
-        return v
-    }
-}
-.semibold) : .systemFont(ofSize: 14)
         
         let v = UILabel(); v.text = value
         v.font = isTotal ? .systemFont(ofSize: 15, weight: .thin) : .systemFont(ofSize: 14, weight: .thin)

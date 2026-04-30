@@ -1,6 +1,6 @@
 import Foundation
 
-struct LinkedAccount: Codable {
+nonisolated struct LinkedAccount: Codable, Sendable {
     let id: UUID
     let userId: UUID
     let channelCode: String
@@ -10,7 +10,7 @@ struct LinkedAccount: Codable {
     let createdAt: String
     let balance: Double?
     
-    enum CodingKeys: String, CodingKey {
+    nonisolated enum CodingKeys: String, CodingKey {
         case id, status, balance
         case userId = "user_id"
         case channelCode = "channel_code"
@@ -20,14 +20,14 @@ struct LinkedAccount: Codable {
     }
 }
 
-struct LinkedAccountResponse: Codable {
+nonisolated struct LinkedAccountResponse: Codable, Sendable {
     let accounts: [LinkedAccount]
 }
 
-struct LinkAccountInitializeResponse: Codable {
+nonisolated struct LinkAccountInitializeResponse: Codable, Sendable {
     let redirectUrl: String
     
-    enum CodingKeys: String, CodingKey {
+    nonisolated enum CodingKeys: String, CodingKey {
         case redirectUrl = "redirect_url"
     }
 }
@@ -43,7 +43,8 @@ class PaymentService {
     }
     
     func initializeLinking(channelCode: String) async throws -> String {
-        let body = ["channel_code": channelCode]
+        let payload = ["channel_code": channelCode]
+        let body = try JSONSerialization.data(withJSONObject: payload)
         let response: LinkAccountInitializeResponse = try await NetworkManager.shared.request(endpoint: "/user/payments/link-account/initialize", method: "POST", body: body)
         return response.redirectUrl
     }
