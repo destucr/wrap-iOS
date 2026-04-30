@@ -29,6 +29,24 @@ class UserService {
         let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/user/orders/\(id.uuidString.lowercased())/rate", method: "POST", body: body)
     }
     
+    func updatePhoneNumber(phoneNumber: String) async throws {
+        let payload = ["phone_number": phoneNumber]
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/user/phone-number", method: "PUT", body: body)
+    }
+    
+    func updateProfile(fullName: String, address: String, postalCode: String, lat: Double, lon: Double) async throws {
+        let payload: [String: Any] = [
+            "full_address": address,
+            "postal_code": postalCode,
+            "latitude": lat,
+            "longitude": lon
+        ]
+        let body = try JSONSerialization.data(withJSONObject: payload)
+        let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/user/address", method: "PUT", body: body)
+        // Note: You may also need a backend endpoint for updating the full name
+    }
+
     func updateSettings(biometricsEnabled: Bool) async throws {
         let payload = ["biometrics_enabled": biometricsEnabled]
         let body = try JSONSerialization.data(withJSONObject: payload)

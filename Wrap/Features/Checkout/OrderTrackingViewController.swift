@@ -53,8 +53,48 @@ class OrderTrackingViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        // Here we could start polling the backend /api/v1/user/orders/:id 
-        // to show real-time driver movement
+        startPolling()
+    }
+    
+    private func startPolling() {
+        Task {
+            // Polling every 5 seconds for simulation purposes
+            for _ in 1...20 {
+                do {
+                    let order: Order = try await NetworkManager.shared.request(endpoint: "/user/orders/\(orderId)")
+                    updateUI(with: order)
+                    if order.deliveryStatus == .delivered {
+                        break
+                    }
+                } catch {
+                    print("Polling failed: \(error)")
+                }
+                try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
+            }
+        }
+    }
+    
+    private func updateUI(with order: Order) {
+        switch order.deliveryStatus {
+        case .pending:
+            statusLabel.text = "Order Received"
+            messageLabel.text = "Waiting for driver assignment..."
+        case .packing:
+            statusLabel.text = "Packing Order"
+            messageLabel.text = "The store is preparing your items."
+            statusIcon.image = UIImage(systemName: "box.truck.fill")
+        case .inTransit:
+            statusLabel.text = "Driver on the Way!"
+            messageLabel.text = "Your order is being delivered."
+            statusIcon.image = UIImage(systemName: "figure.walk.motion")
+        case .delivered:
+            statusLabel.text = "Delivered! 🎉"
+            messageLabel.text = "Hope you enjoy your purchase!"
+            statusIcon.image = UIImage(systemName: "checkmark.seal.fill")
+            statusIcon.tintColor = .systemGreen
+        default:
+            break
+        }
     }
     
     private func setupUI() {

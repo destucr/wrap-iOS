@@ -62,6 +62,7 @@ extension Double {
         formatter.locale = Locale(identifier: "id_ID")
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = "."
+        formatter.maximumFractionDigits = 0
         let formattedString = formatter.string(from: NSNumber(value: self)) ?? "\(Int(self))"
         return "Rp\(formattedString)"
     }

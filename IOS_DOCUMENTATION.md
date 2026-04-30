@@ -64,3 +64,9 @@ We use **SwiftData** for order-grade local persistence.
 2. Define your `Model` with `Codable` and `Sendable`.
 3. If the feature involves list data, use `RxCocoa`'s `rx.items` for binding.
 4. Update `MainTabBarController` if the feature requires a new role-specific tab.
+
+## 🌏 Localization & Copywriting
+The application is localized primarily in **Indonesian (Bahasa Indonesia)**.
+- **Mandate:** All user-facing strings, buttons, and alerts MUST be written in Indonesian.
+- **Style:** Use professional but modern "startup" Indonesian (e.g., using "Akun" instead of "Rekening" for profiles, "Lanjut" for "Next").
+- **Implementation:** Strings are currently hardcoded in ViewControllers for speed, but follow the `Indonesian` naming convention in `Assets.xcassets` where applicable.

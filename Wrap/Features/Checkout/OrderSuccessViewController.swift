@@ -76,6 +76,26 @@ class OrderSuccessViewController: UIViewController {
         view.backgroundColor = .systemBackground
         navigationItem.hidesBackButton = true
         
+        let isPaid = paymentUrl == "DIRECT_DEBIT_PAID"
+        
+        if isPaid {
+            titleLabel.text = "Payment Successful!"
+            instructionsLabel.text = "We've received your payment. Your order is now being processed."
+            payNowButton.isHidden = true
+            doneButton.setTitle("Track Order", for: .normal)
+            
+            // Auto-transition to tracking after 2 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                guard let self = self else { return }
+                self.coordinator?.showOrderTracking(orderId: self.orderId)
+            }
+        } else {
+            titleLabel.text = "Order Placed!"
+            instructionsLabel.text = "Your items are reserved for 15 minutes. Please complete the payment to finalize your order."
+            payNowButton.isHidden = false
+            doneButton.setTitle("Back to Home", for: .normal)
+        }
+        
         [successImageView, titleLabel, orderIdLabel, instructionsLabel, payNowButton, doneButton].forEach {
             view.addSubview($0)
         }
@@ -105,11 +125,11 @@ class OrderSuccessViewController: UIViewController {
         payNowButton.snp.makeConstraints { make in
             make.top.equalTo(instructionsLabel.snp.bottom).offset(40)
             make.leading.trailing.equalToSuperview().inset(20)
-            make.height.equalTo(56)
+            make.height.equalTo(isPaid ? 0 : 56)
         }
         
         doneButton.snp.makeConstraints { make in
-            make.top.equalTo(payNowButton.snp.bottom).offset(20)
+            make.top.equalTo(payNowButton.snp.bottom).offset(isPaid ? 0 : 20)
             make.centerX.equalToSuperview()
         }
         
@@ -124,7 +144,11 @@ class OrderSuccessViewController: UIViewController {
     }
     
     @objc private func handleDone() {
-        coordinator?.showCatalog()
+        if paymentUrl == "DIRECT_DEBIT_PAID" {
+            coordinator?.showOrderTracking(orderId: orderId)
+        } else {
+            coordinator?.showCatalog()
+        }
     }
 }
 

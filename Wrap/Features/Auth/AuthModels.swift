@@ -34,14 +34,40 @@ nonisolated struct UserData: Codable, Sendable {
     let email: String
     let fullName: String
     let fullAddress: String?
+    let phoneNumber: String?
+    let postalCode: String?
+    let latitude: Double?
+    let longitude: Double?
     let biometricsEnabled: Bool
     let role: UserRole
 
     enum CodingKeys: String, CodingKey {
-        case id, email, role
+        case id, email, role, latitude, longitude
         case fullName = "full_name"
         case fullAddress = "full_address"
+        case phoneNumber = "phone_number"
+        case postalCode = "postal_code"
         case biometricsEnabled = "biometrics_enabled"
+    }
+}
+
+nonisolated struct SavedAddress: Codable, Sendable {
+    let id: UUID
+    let userId: UUID
+    let label: String
+    let fullAddress: String
+    let latitude: Double
+    let longitude: Double
+    let postalCode: String
+    let createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, label
+        case userId = "user_id"
+        case fullAddress = "full_address"
+        case latitude, longitude
+        case postalCode = "postal_code"
+        case createdAt = "created_at"
     }
 }
 

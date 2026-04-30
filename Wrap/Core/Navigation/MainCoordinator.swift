@@ -1,5 +1,6 @@
 import UIKit
 import Hero
+import CoreLocation
 
 class MainCoordinator: Coordinator {
     var navigationController: UINavigationController
@@ -140,6 +141,30 @@ class MainCoordinator: Coordinator {
     func showOrderDetail(orderId: UUID) {
         let vc = OrderDetailViewController(orderId: orderId)
         vc.coordinator = self
+        currentNavigationController?.pushViewController(vc, animated: true)
+    }
+
+    func showAccountDetails() {
+        let vc = AccountDetailsViewController()
+        vc.coordinator = self
+        currentNavigationController?.pushViewController(vc, animated: true)
+    }
+
+    func showPinSettings() {
+        let vc = PinSettingsViewController()
+        vc.coordinator = self
+        currentNavigationController?.pushViewController(vc, animated: true)
+    }
+
+    func showSavedAddresses() {
+        let vc = SavedAddressesViewController()
+        vc.coordinator = self
+        currentNavigationController?.pushViewController(vc, animated: true)
+    }
+
+    func showAddressMap(onSave: @escaping (CLLocationCoordinate2D, String, String) -> Void) {
+        let vc = AddressMapViewController()
+        vc.onSave = onSave
         currentNavigationController?.pushViewController(vc, animated: true)
     }
 }

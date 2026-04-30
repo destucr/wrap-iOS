@@ -4,6 +4,7 @@ import SnapKit
 final class ProfileViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
+    private var userData: UserData?
     
     private enum Section: Int, CaseIterable {
         case account
@@ -105,8 +106,9 @@ final class ProfileViewController: UIViewController {
         Task {
             do {
                 let user = try await UserService.shared.fetchProfile()
+                self.userData = user
                 nameLabel.text = user.fullName
-                addressLabel.text = user.email // Fallback to email if address is nil
+                addressLabel.text = user.email
                 
                 if biometricSwitch.isOn != user.biometricsEnabled {
                     biometricSwitch.setOn(user.biometricsEnabled, animated: true)
@@ -156,7 +158,7 @@ extension ProfileViewController: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         guard let section = Section(rawValue: section) else { return 0 }
         switch section {
-        case .account: return 1
+        case .account: return 3
         case .payments: return 1
         case .security: return 2
         case .logistics: return 1
@@ -176,8 +178,16 @@ extension ProfileViewController: UITableViewDataSource, UITableViewDelegate {
         
         switch section {
         case .account:
-            cell.textLabel?.text = "Detail Akun"
-            cell.detailTextLabel?.text = ""
+            if indexPath.row == 0 {
+                cell.textLabel?.text = "Nama"
+                cell.detailTextLabel?.text = userData?.fullName
+            } else if indexPath.row == 1 {
+                cell.textLabel?.text = "Telepon"
+                cell.detailTextLabel?.text = userData?.phoneNumber ?? "-"
+            } else {
+                cell.textLabel?.text = "Alamat"
+                cell.detailTextLabel?.text = userData?.fullAddress ?? "Belum diatur"
+            }
         case .payments:
             cell.textLabel?.text = "Metode Pembayaran"
             cell.imageView?.image = UIImage(systemName: "creditcard")
@@ -208,19 +218,16 @@ extension ProfileViewController: UITableViewDataSource, UITableViewDelegate {
         
         switch section {
         case .account:
-            // Navigation to Account Details
-            break
+            coordinator?.showAccountDetails()
         case .payments:
             let vc = PaymentMethodsViewController()
             navigationController?.pushViewController(vc, animated: true)
         case .security:
             if indexPath.row == 1 {
-                // Navigation to PIN Settings
-                break
+                coordinator?.showPinSettings()
             }
         case .logistics:
-            // Navigation to Saved Addresses
-            break
+            coordinator?.showSavedAddresses()
         case .system:
             handleLogout()
         }

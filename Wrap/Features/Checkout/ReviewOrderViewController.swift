@@ -1,10 +1,13 @@
 import UIKit
 import SnapKit
+import SafariServices
+import AuthenticationServices
 
 @MainActor
 final class ReviewOrderViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
+    private var webAuthSession: ASWebAuthenticationSession?
     private var recommendations: [Product] = []
     private var cartItems: [CartItem] = []
     private var selectedAccount: LinkedAccount?
@@ -294,6 +297,23 @@ final class ReviewOrderViewController: UIViewController {
                 
                 if response.paymentUrl == "DIRECT_DEBIT_PAID" {
                     coordinator?.showOrderTracking(orderId: response.orderId.uuidString)
+                } else if selectedAccount != nil, let url = URL(string: response.paymentUrl) {
+                    // REQUIRES_ACTION flow for Linked Accounts (OVO/DANA PIN)
+                    // ELITE: Use ASWebAuthenticationSession for an "in-app" feel with automatic redirect capture
+                    let session = ASWebAuthenticationSession(url: url, callbackURLScheme: "wrapapp") { [weak self] callbackURL, error in
+                        if let url = callbackURL, url.host == "payment", url.path == "/success" {
+                            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                            let orderId = components?.queryItems?.first(where: { $0.name == "order_id" })?.value ?? response.orderId.uuidString
+                            self?.coordinator?.showOrderSuccess(orderId: orderId, paymentUrl: "DIRECT_DEBIT_PAID")
+                        } else if error == nil {
+                            // User finished but maybe not success? Navigate to History anyway
+                            self?.coordinator?.showOrderHistory()
+                        }
+                    }
+                    session.presentationContextProvider = self
+                    session.prefersEphemeralWebBrowserSession = true
+                    self.webAuthSession = session
+                    session.start()
                 } else {
                     coordinator?.showOrderSuccess(orderId: response.orderId.uuidString, paymentUrl: response.paymentUrl)
                 }
@@ -375,6 +395,20 @@ extension ReviewOrderViewController: UITableViewDelegate, UITableViewDataSource 
     }
 }
 
+// MARK: - ASWebAuthenticationPresentationContextProviding
+extension ReviewOrderViewController: ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        return view.window ?? UIWindow()
+    }
+}
+
+// MARK: - SFSafariViewControllerDelegate
+extension ReviewOrderViewController: SFSafariViewControllerDelegate {
+    func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
+        coordinator?.showOrderHistory()
+    }
+}
+
 // MARK: - Recommendations
 extension ReviewOrderViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -389,11 +423,7 @@ extension ReviewOrderViewController: UICollectionViewDelegate, UICollectionViewD
 
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
          let product = recommendations[indexPath.item]
-
-         // 1. Show the navigation bar immediately so the Detail screen can use it
          navigationController?.setNavigationBarHidden(false, animated: true)
-
-         // 2. Navigate
          coordinator?.showProductDetail(productId: product.id)
     }
 }
