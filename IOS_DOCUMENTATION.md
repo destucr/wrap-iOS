@@ -1,87 +1,66 @@
 # Wrap iOS Technical Documentation
-Version: 1.4 (Updated for Tab Bar Visibility & Safe Area)
+Version: 2.0 (Updated for RxSwift & RBAC)
 Target: iOS 17.0+
 
-## 🏛 Architecture: Feature-Based MVC + Coordinator
+## 🏛 Architecture: Reactive Feature-Based MVC + Coordinator
 
-We use a modular structure where code is grouped by **Feature** rather than technical layer. This ensures that a developer looking to fix a bug in "Checkout" doesn't have to jump between 5 different folders at the root level.
+We use a modular structure where code is grouped by **Feature** and powered by **RxSwift** for reactive state management. This ensures data consistency across the app without the fragility of manual notifications.
 
 ### Folder Structure
 - `Core/`: Singleton managers and shared infrastructure.
-  - `Networking/`: `NetworkManager` for API calls.
-  - `Navigation/`: `Coordinator` logic and `MainTabBarController`.
-  - `Cart/`: `CartManager` for persistence logic.
+  - `Networking/`: `NetworkManager` (Rx-enabled) for API calls.
+  - `Navigation/`: `Coordinator` logic and `MainTabBarController` (Role-aware).
+  - `Cart/`: `CartManager` (Reactive via `BehaviorRelay`).
   - `Theme/`: `Brand` definition and typography.
-  - `Security/`: `BiometricManager` and `KeychainHelper`.
+  - `Security/`: `BiometricManager` and `KeychainHelper` (Atomic updates).
 - `Features/`:
   - `Auth/`: Login & Registration. Models: `AuthResponse`, `UserData`.
-  - `Catalog/`: Browsing and Product Details. Models: `Product`, `PromoBanner`, `CatalogCategory`.
+  - `Catalog/`: Browsing and Product Details.
   - `Checkout/`: Unified Review Order, Previews, and Payment.
-    - `Components/`: `EmptyCartView`, `ReviewItemCell`.
-    - `ReviewOrderViewController`: The unified Cart + Review screen.
+  - `OrderHistory/`: Order list and tracking.
 
-### Real-time Inventory Validation & Data Sync
-To prevent user frustration during checkout, the app uses the `/checkout/preview` endpoint for proactive state management:
-- **Trigger:** Call on cart load and whenever a stepper value changes.
-- **Logic:** If `is_valid` is `false`, the "Place Order" button must be disabled, and the affected `ReviewItemCell` should display the `message` (e.g., "Out of stock").
-- **Data Integrity:** UI updates are handled through `NotificationCenter` observers. `ReviewOrderViewController` prioritizes immediate local state updates while `Task`-based network previews run in the background with cancellation support to prevent stale data race conditions.
-- **Idempotency & Double-Tap Protection:** 
-    - The `CartManager` maintains a stable `idempotencyKey` that remains constant for a specific cart state. It resets only when items are added, removed, or quantities change.
-    - `ReviewOrderViewController` disables the payment button and shows a "Processing" state during order placement to prevent duplicate submissions from rapid taps.
+## ⚡️ Reactive State Management (RxSwift)
 
-### The Coordinator Pattern
-Navigation is decoupled from ViewControllers. 
-- **Implementation:** Every feature VC has a `weak var coordinator: MainCoordinator?` property.
-- **Refinement:** `showCart()` and `showCheckoutPreview()` now both route to `ReviewOrderViewController`.
+The app's core state is now reactive to ensure high performance and reliable synchronization.
+
+### 1. Reactive Cart & Automatic Sync
+- **Implementation:** `CartManager` uses a `BehaviorRelay<[CartItem]>` as the source of truth.
+- **Auto-Sync:** A debounced observer (`2.0s`) automatically triggers `syncWithBackend()` whenever the cart changes. This ensures the server always has the latest items without overwhelming the API.
+- **UI Binding:** `CatalogViewController` and `MainTabBarController` bind directly to the `cartItems` stream using **RxCocoa**, eliminating manual `reloadData()` flickering and stale badges.
+
+### 2. Session & Auth Streams
+- **NetworkManager:** Exposes an `authStatus: Observable<AuthStatus>` stream.
+- **Graceful Expiration:** The UI can reactively transition to the login screen or show alerts when a session becomes unauthorized, preventing "silent pops."
+
+### 3. Stock-Aware UI
+- **ProductCell:** Reactively configures interaction based on `qtyOnHand`. If stock is 0, the stepper is disabled and an "Out of Stock" overlay is displayed automatically.
+
+## 🛡️ Security & Identity (RBAC)
+
+### Role-Based Access Control
+The app supports multiple user roles (Customer, Driver, Admin).
+- **Detection:** The `role` is returned in the `POST /login` response and persisted in `UserDefaults`.
+- **UI Switching:** `MainCoordinator` and `MainTabBarController` dynamically configure the interface:
+    - **Customer View:** [Shop | Cart | Orders | Profile]
+    - **Driver View:** [🚚 Queue | 👤 Profile]
+- **Persistence:** `AuthManager.shared.userRole` caches the role to ensure the correct UI loads instantly on "Cold Start."
+
+### Atomic Keychain Management
+`KeychainHelper.save` uses an atomic `SecItemUpdate` strategy. If an item exists, it is updated in-place. If missing, it is added. This prevents the "Delete-then-Add" window where tokens could be lost if the app is interrupted.
 
 ## 💾 Persistence: SwiftData
 We use **SwiftData** for order-grade local persistence.
-- **Model:** `CartItem` (See `Features/Checkout/Models/CartItem.swift`).
-- **Constraint:** `variantId` is marked as `@Attribute(.unique)` to prevent duplicate SKUs in the cart.
-- **Lifecycle:** Initialized in `SceneDelegate` and injected into `CartManager.shared`.
-- **Concurrency:** All models (`Product`, `UserData`, etc.) conform to `Sendable` for Swift 6 safety.
-
-## 🎨 UI & Layout
-- **Tab Bar Visibility (iOS 15+):** We use `UITabBarAppearance` in `MainTabBarController` to enforce an opaque background. This prevents the tab bar from disappearing or appearing overly transparent when scrollable content passes behind it.
-- **Sticky Bottom Bars:** In controllers like `ReviewOrderViewController`, sticky footers must be pinned to `view.safeAreaLayoutGuide.snp.bottom` rather than the superview's bottom. This ensures the component sits correctly above the tab bar and respects the home indicator.
-- **Seamless Navigation**: Integrates the `Hero` library to create fluid, shared element transitions (image and title) between product lists and detail views, elevating the perceived quality with minimal code footprint.
-- **SnapKit:** DSL for programmatic constraints.
-- **Unified Checkout:** The Cart and Review Order screens are unified into a single `ReviewOrderViewController` using `UITableView`.
-- **Native Gestures:** `ReviewOrderViewController` implements `trailingSwipeActionsConfigurationForRowAt` for native **Swipe-to-Delete** on products.
-- **Compositional Layout:** `HomeViewController` uses `interGroupSpacing` and padding insets in its `UICollectionViewCompositionalLayout` to prevent visual crowding.
-- **Kingfisher:** Asynchronous image loading and disk caching.
-- **Haptics:** `UIImpactFeedbackGenerator` is used for non-disruptive feedback (e.g., adding to cart).
-- **Navigation Lifecycle:** To maintain the custom dashboard look while preserving the **Swipe-to-Back** gesture:
-    - `HomeViewController`: Hides the navigation bar in `viewWillAppear`.
-    - Secondary Screens: Explicitly unhide the navigation bar in `viewWillAppear` to show titles and back buttons.
+- **Model:** `CartItem`.
+- **Constraint:** `variantId` is marked as `@Attribute(.unique)`.
+- **Isolation:** The local cart is explicitly cleared via `CartManager.shared.clear()` during logout to prevent data leaking between accounts.
 
 ## 📡 Networking
-- **NetworkManager**: Centralized URLSession wrapper with `Keychain` integration.
-- **Date Decoding**: Uses a custom `JSONDecoder.dateDecodingStrategy` to handle ISO8601 strings with and without fractional seconds, ensuring compatibility with Go's RFC3339 output.
-- **Swift 6 Safety**:
-  - All request generic types `T` must conform to `Codable & Sendable`.
-  - Async fetching helpers (e.g., `performFetchHome`) are marked `nonisolated` to resolve actor isolation warnings.
-- **Type Safety**: Models use specific names like `UserData` and `CatalogCategory` to avoid global naming collisions.
-- **Session Management**: Explicit `logout()` triggers local cache clearing (Keychain + Memory) and notifies the backend to invalidate push tokens.
-  - **Token Duration:** Firebase ID Tokens are valid for **1 hour**.
-  - **Auto-Refresh:** The SDK/NetworkManager should handle refresh token logic to maintain a seamless session beyond the 1-hour window.
-
-## 🔐 Environment & Secrets
-1. **Firebase (`GoogleService-Info.plist`):** Automatically managed by the Firebase SDK.
-2. **App Configuration (`Config.plist`):** Custom plist for API URLs and public keys.
-3. **Privacy Descriptions (`Info.plist`):** 
-   - `NSFaceIDUsageDescription`: Required for biometric login.
-   - `NSLocationWhenInUseUsageDescription`: Required for delivery logistics.
-   - `UIDesignRequiresCompatibility`: Set to `YES` to ensure layout consistency across modern iOS display variants.
-
-## 🛡️ Security & Identity
-- **BiometricManager**: Singleton wrapper for `LocalAuthentication`.
-  - **Exhaustivity**: Handles `.touchID`, `.faceID`, and `.opticID` explicitly.
-- **OAuth Sync**: Google Sign-In utilizes "Silent Registration" via `/user/sync`.
-- **Strict Auth Guard**: `MainCoordinator` enforces mandatory token checks before showing the main interface.
+- **NetworkManager**: Centralized URLSession wrapper with Rx-bridge.
+- **Input Cleaning:** `AuthService` automatically trims whitespace and forces lowercase on emails to prevent common simulator typing errors.
+- **Swift 6 Safety**: All network models (`Product`, `UserData`, `AuthResponse`) conform to `Sendable` and use `nonisolated` where appropriate for background decoding.
 
 ## 🛠 Adding a New Feature
 1. Create a new folder under `Features/Name`.
-2. Define your `Model` with `Codable` and `Sendable` conformances.
-3. Create the `ViewController` (prefer `UITableView` for lists requiring gestures).
-4. Add navigation to `MainCoordinator.swift`.
+2. Define your `Model` with `Codable` and `Sendable`.
+3. If the feature involves list data, use `RxCocoa`'s `rx.items` for binding.
+4. Update `MainTabBarController` if the feature requires a new role-specific tab.
