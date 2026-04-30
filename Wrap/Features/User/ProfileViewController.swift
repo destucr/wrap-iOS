@@ -7,6 +7,7 @@ final class ProfileViewController: UIViewController {
     
     private enum Section: Int, CaseIterable {
         case account
+        case payments
         case security
         case logistics
         case system
@@ -14,6 +15,7 @@ final class ProfileViewController: UIViewController {
         var title: String? {
             switch self {
             case .account: return "Informasi Akun"
+            case .payments: return "Pembayaran"
             case .security: return "Keamanan"
             case .logistics: return "Logistik"
             case .system: return nil
@@ -155,6 +157,7 @@ extension ProfileViewController: UITableViewDataSource, UITableViewDelegate {
         guard let section = Section(rawValue: section) else { return 0 }
         switch section {
         case .account: return 1
+        case .payments: return 1
         case .security: return 2
         case .logistics: return 1
         case .system: return 1
@@ -175,6 +178,10 @@ extension ProfileViewController: UITableViewDataSource, UITableViewDelegate {
         case .account:
             cell.textLabel?.text = "Detail Akun"
             cell.detailTextLabel?.text = ""
+        case .payments:
+            cell.textLabel?.text = "Metode Pembayaran"
+            cell.imageView?.image = UIImage(systemName: "creditcard")
+            cell.imageView?.tintColor = Brand.primary
         case .security:
             if indexPath.row == 0 {
                 cell.textLabel?.text = "Biometric Login"
@@ -203,6 +210,9 @@ extension ProfileViewController: UITableViewDataSource, UITableViewDelegate {
         case .account:
             // Navigation to Account Details
             break
+        case .payments:
+            let vc = PaymentMethodsViewController()
+            navigationController?.pushViewController(vc, animated: true)
         case .security:
             if indexPath.row == 1 {
                 // Navigation to PIN Settings

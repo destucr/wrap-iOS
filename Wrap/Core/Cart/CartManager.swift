@@ -206,8 +206,8 @@ class CartManager: Sendable {
         return try await CheckoutService.shared.previewCheckout(items: items, address: address)
     }
     
-    func placeOrder(address: [String: String]) async throws -> OrderResponse {
-        return try await CheckoutService.shared.placeOrder(items: items, address: address, idempotencyKey: idempotencyKey)
+    func placeOrder(address: [String: String], linkedAccountId: UUID? = nil) async throws -> OrderResponse {
+        return try await CheckoutService.shared.placeOrder(items: items, address: address, idempotencyKey: idempotencyKey, linkedAccountId: linkedAccountId)
     }
 }
 

@@ -56,6 +56,7 @@ final class ReviewOrderViewController: UIViewController {
         setupUI()
         setupObservers()
         fetchRecommendations()
+        fetchLinkedAccounts()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -254,9 +255,14 @@ final class ReviewOrderViewController: UIViewController {
                     "floor_unit": "402",
                     "postal_code": "12345"
                 ]
-                let response = try await CartManager.shared.placeOrder(address: address)
+                let response = try await CartManager.shared.placeOrder(address: address, linkedAccountId: selectedAccount?.id)
                 CartManager.shared.clear()
-                coordinator?.showOrderSuccess(orderId: response.orderId.uuidString, paymentUrl: response.paymentUrl)
+                
+                if response.paymentUrl == "DIRECT_DEBIT_PAID" {
+                    coordinator?.showOrderTracking(orderId: response.orderId.uuidString)
+                } else {
+                    coordinator?.showOrderSuccess(orderId: response.orderId.uuidString, paymentUrl: response.paymentUrl)
+                }
             } catch {
                 print("Order placement failed: \(error)")
                 payButton.isEnabled = true
@@ -307,6 +313,11 @@ extension ReviewOrderViewController: UITableViewDelegate, UITableViewDataSource 
                 return cell
             } else {
                 let cell = tableView.dequeueReusableCell(withIdentifier: PaymentMethodCell.identifier, for: indexPath) as! PaymentMethodCell
+                if let account = selectedAccount {
+                    cell.configure(with: account)
+                } else {
+                    cell.configureDefault()
+                }
                 return cell
             }
         case 3:
@@ -319,6 +330,13 @@ extension ReviewOrderViewController: UITableViewDelegate, UITableViewDataSource 
             return cell
         default:
             return UITableViewCell()
+        }
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        if indexPath.section == 2 && indexPath.row == 1 {
+            showPaymentMethodPicker()
         }
     }
 }
@@ -666,6 +684,63 @@ final class PricingCell: UITableViewCell {
         let view = UIView()
         let l = UILabel(); l.text = label
         l.font = isTotal ? .systemFont(ofSize: 15, weight: .semibold) : .systemFont(ofSize: 14)
+        
+        let v = UILabel(); v.text = value
+        v.font = isTotal ? .systemFont(ofSize: 15, weight: .thin) : .systemFont(ofSize: 14, weight: .thin)
+        v.textColor = valueColor ?? Brand.Text.primary
+        
+        view.addSubview(l); view.addSubview(v)
+        l.snp.makeConstraints { make in 
+            make.leading.equalToSuperview().offset(12)
+            make.top.bottom.equalToSuperview().inset(8)
+        }
+        v.snp.makeConstraints { make in 
+            make.trailing.equalToSuperview().offset(-12)
+            make.centerY.equalTo(l)
+        }
+        return view
+    }
+    
+    private func createDivider() -> UIView {
+        let v = UIView(); v.backgroundColor = UIColor(red: 0.90, green: 0.90, blue: 0.92, alpha: 1.0)
+        v.snp.makeConstraints { make in make.height.equalTo(1) }
+        return v
+    }
+}
+esponse.serviceFee.formattedIDR))
+        stack.addArrangedSubview(createDivider())
+        
+        stack.addArrangedSubview(createRow(label: "Total Pembayaran", value: response.total.formattedIDR, isTotal: true))
+    }
+    
+    private func createRow(label: String, value: String, isTotal: Bool = false, valueColor: UIColor? = nil) -> UIView {
+        let view = UIView()
+        let l = UILabel(); l.text = label
+        l.font = isTotal ? .systemFont(ofSize: 15, weight: .semibold) : .systemFont(ofSize: 14)
+        
+        let v = UILabel(); v.text = value
+        v.font = isTotal ? .systemFont(ofSize: 15, weight: .thin) : .systemFont(ofSize: 14, weight: .thin)
+        v.textColor = valueColor ?? Brand.Text.primary
+        
+        view.addSubview(l); view.addSubview(v)
+        l.snp.makeConstraints { make in 
+            make.leading.equalToSuperview().offset(12)
+            make.top.bottom.equalToSuperview().inset(8)
+        }
+        v.snp.makeConstraints { make in 
+            make.trailing.equalToSuperview().offset(-12)
+            make.centerY.equalTo(l)
+        }
+        return view
+    }
+    
+    private func createDivider() -> UIView {
+        let v = UIView(); v.backgroundColor = UIColor(red: 0.90, green: 0.90, blue: 0.92, alpha: 1.0)
+        v.snp.makeConstraints { make in make.height.equalTo(1) }
+        return v
+    }
+}
+.semibold) : .systemFont(ofSize: 14)
         
         let v = UILabel(); v.text = value
         v.font = isTotal ? .systemFont(ofSize: 15, weight: .thin) : .systemFont(ofSize: 14, weight: .thin)

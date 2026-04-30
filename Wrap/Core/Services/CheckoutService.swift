@@ -17,8 +17,8 @@ class CheckoutService {
         return try await NetworkManager.shared.request(endpoint: "/checkout/preview", method: "POST", body: body)
     }
     
-    func placeOrder(items: [CartItem], address: [String: String], idempotencyKey: String) async throws -> OrderResponse {
-        let payload: [String: Any] = [
+    func placeOrder(items: [CartItem], address: [String: String], idempotencyKey: String, linkedAccountId: UUID? = nil) async throws -> OrderResponse {
+        var payload: [String: Any] = [
             "items": items.map { [
                 "variant_id": $0.variantId.uuidString.lowercased(),
                 "quantity": $0.quantity
@@ -26,6 +26,9 @@ class CheckoutService {
             "address": address,
             "idempotency_key": idempotencyKey
         ]
+        if let laID = linkedAccountId {
+            payload["linked_account_id"] = laID.uuidString.lowercased()
+        }
         let body = try JSONSerialization.data(withJSONObject: payload)
         return try await NetworkManager.shared.request(endpoint: "/checkout/place", method: "POST", body: body)
     }
