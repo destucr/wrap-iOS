@@ -1,11 +1,26 @@
 import Foundation
 import Combine
 
-enum ViewState<T> {
+enum ViewState<T>: Equatable where T: Equatable {
     case idle
     case loading
     case success(T)
     case error(String)
+    
+    var isLoading: Bool {
+        if case .loading = self { return true }
+        return false
+    }
+    
+    static func == (lhs: ViewState<T>, rhs: ViewState<T>) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle): return true
+        case (.loading, .loading): return true
+        case (.success(let l), .success(let r)): return l == r
+        case (.error(let l), .error(let r)): return l == r
+        default: return false
+        }
+    }
 }
 
 @MainActor

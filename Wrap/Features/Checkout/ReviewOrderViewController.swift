@@ -10,7 +10,7 @@ final class ReviewOrderViewController: UIViewController {
     weak var coordinator: MainCoordinator?
     private var webAuthSession: ASWebAuthenticationSession?
     private var recommendations: [Product] = []
-    private var cartItems: [CartItem] = []
+    private var cartItems: [CartItemDTO] = []
     private var selectedAccount: LinkedAccount?
     private var linkedAccounts: [LinkedAccount] = []
     private var previewResponse: CheckoutPreviewResponse?
@@ -19,7 +19,7 @@ final class ReviewOrderViewController: UIViewController {
     private var cancellables = Set<AnyCancellable>()
     
     // Diffable Data Source Types
-    private enum Section: Int, CaseIterable, Hashable {
+    nonisolated private enum Section: Int, CaseIterable, Hashable, Sendable {
         case address
         case items
         case payment
@@ -27,9 +27,9 @@ final class ReviewOrderViewController: UIViewController {
         case recommendations
     }
     
-    private enum RowItem: Hashable {
+    nonisolated private enum RowItem: Hashable, Sendable {
         case address
-        case cartItem(CartItem, message: String?)
+        case cartItem(CartItemDTO, message: String?)
         case voucher
         case paymentMethod(LinkedAccount?)
         case pricing(CheckoutPreviewResponse?, Double, isLoading: Bool)
@@ -178,7 +178,7 @@ final class ReviewOrderViewController: UIViewController {
     }
     
     private func configureDataSource() {
-        dataSource = DataSource(tableView: tableView) { [weak self] (tableView, indexPath, item) -> UITableViewCell? in
+        dataSource = DataSource(tableView: tableView) { [weak self] (tableView: UITableView, indexPath: IndexPath, item: RowItem) -> UITableViewCell? in
             guard let self = self else { return nil }
             
             switch item {
@@ -187,11 +187,11 @@ final class ReviewOrderViewController: UIViewController {
                 
             case .cartItem(let cartItem, let message):
                 let cell = tableView.dequeueReusableCell(withIdentifier: ReviewItemCell.identifier, for: indexPath) as! ReviewItemCell
-                if self.previewState == .loading {
+                if self.previewState.isLoading {
                     cell.startLoading()
                 } else {
                     cell.configure(with: cartItem, message: message)
-                    cell.onQuantityChange = { [weak self] newQty in
+                    cell.onQuantityChange = { newQty in
                         CartManager.shared.setQuantity(variantId: cartItem.variantId, quantity: newQty, name: cartItem.name, price: cartItem.price)
                     }
                 }
@@ -228,7 +228,9 @@ final class ReviewOrderViewController: UIViewController {
     }
     
     private func updateUIState() {
-        self.cartItems = CartManager.shared.items
+        let items = CartManager.shared.items
+        self.cartItems = items.map { CartItemDTO(variantId: $0.variantId, name: $0.name, price: $0.price, quantity: $0.quantity) }
+        
         let isEmpty = cartItems.isEmpty
         emptyStateView.isHidden = !isEmpty
         tableView.isHidden = isEmpty
@@ -254,7 +256,7 @@ final class ReviewOrderViewController: UIViewController {
         
         snapshot.appendItems([.voucher, .paymentMethod(selectedAccount)], toSection: .payment)
         
-        let isLoading = (previewState == .loading)
+        let isLoading = previewState.isLoading
         snapshot.appendItems([.pricing(previewResponse, CartManager.shared.totalAmount, isLoading: isLoading)], toSection: .pricing)
         
         dataSource.apply(snapshot, animatingDifferences: true)
@@ -274,8 +276,8 @@ final class ReviewOrderViewController: UIViewController {
     private func fetchLinkedAccounts() {
         Task {
             do {
-                let response = try await PaymentService.shared.fetchLinkedAccounts()
-                self.linkedAccounts = response
+                let accounts = try await PaymentService.shared.fetchLinkedAccounts()
+                self.linkedAccounts = accounts
                 if let ovo = linkedAccounts.first(where: { $0.channelCode == "ID_OVO" }) {
                     self.selectedAccount = ovo
                 } else {
@@ -617,7 +619,7 @@ final class ReviewItemCell: UITableViewCell {
         [thumbnail, nameLabel, priceLabel, stepper].forEach { $0.isHidden = false }
     }
     
-    func configure(with item: CartItem, message: String? = nil) {
+    func configure(with item: CartItemDTO, message: String? = nil) {
         stopLoading()
         nameLabel.text = item.name
         priceLabel.text = item.price.formattedIDR
@@ -773,6 +775,8 @@ final class PricingCell: UITableViewCell {
         contentView.addSubview(container)
         container.backgroundColor = .white
         container.roundCorners()
+        container.applyShadow(opacity: 0.04, radius: 4, offset: CGSize(width: 0, height: 1))
+        
         container.snp.makeConstraints { make in
             make.edges.equalToSuperview().inset(UIEdgeInsets(top: 8, left: 16, bottom: 20, right: 16))
         }

@@ -35,6 +35,13 @@ nonisolated struct CartResponse: Codable, Sendable {
     let items: [CartItemResponse]
 }
 
+nonisolated struct CartItemDTO: Hashable, Equatable, Sendable {
+    let variantId: UUID
+    let name: String
+    let price: Double
+    let quantity: Int
+}
+
 @MainActor
 class CartManager: Sendable {
     static let shared = CartManager()

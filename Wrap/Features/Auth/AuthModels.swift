@@ -29,7 +29,7 @@ nonisolated struct AuthResponse: Codable, Sendable {
     }
 }
 
-nonisolated struct UserData: Codable, Sendable {
+nonisolated struct UserData: Codable, Sendable, Hashable, Equatable {
     let id: UUID
     let email: String
     let fullName: String
