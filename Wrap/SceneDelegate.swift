@@ -7,35 +7,35 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var coordinator: MainCoordinator?
     var container: ModelContainer?
 
+    private enum StartupCheckResult {
+        case finished(Bool)
+        case timeout
+    }
+
     private func performStartupCheck() {
         Task {
-            let result = await withTaskGroup(of: Bool?.self) { group in
+            let result = await withTaskGroup(of: StartupCheckResult.self) { group in
                 group.addTask {
-                    return await AuthManager.shared.validateSession()
+                    let isValid = await AuthManager.shared.validateSession()
+                    return .finished(isValid)
                 }
                 
                 group.addTask {
                     try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
-                    return nil // Timeout signal
+                    return .timeout
                 }
                 
                 guard let first = await group.next() else {
                     group.cancelAll()
-                    return false // Should not happen
+                    return .finished(false)
                 }
                 
-                if first == nil {
-                    // Timeout finished first
-                    group.cancelAll()
-                    return nil
-                } else {
-                    // Validation finished first
-                    group.cancelAll()
-                    return first
-                }
+                group.cancelAll()
+                return first
             }
             
-            if let isValid = result {
+            switch result {
+            case .finished(let isValid):
                 if isValid {
                     coordinator?.start()
                 } else {
@@ -48,8 +48,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                         coordinator?.showLogin()
                     }
                 }
-            } else {
-                // Timeout case
+            case .timeout:
                 showNetworkErrorAlert()
             }
         }
@@ -113,16 +112,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneWillResignActive(_ scene: UIScene) {}
     func sceneWillEnterForeground(_ scene: UIScene) {}
     func sceneDidEnterBackground(_ scene: UIScene) {}
-    
+
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
-        guard let url = URLContexts.first?.url else { return }
-        handleURL(url)
+        if let urlContext = URLContexts.first {
+            handleURL(urlContext.url)
+        }
     }
-    
+
     private func handleURL(_ url: URL) {
-        // Expected: wrapapp://payment/success?order_id=uuid
-        guard url.scheme == "wrapapp" else { return }
-        
         if url.host == "payment", url.path == "/success" {
             let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
             let orderId = components?.queryItems?.first(where: { $0.name == "order_id" })?.value ?? "LATEST"

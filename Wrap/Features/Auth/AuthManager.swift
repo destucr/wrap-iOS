@@ -26,6 +26,10 @@ class AuthManager {
 
     private init() {}
 
+    var hasValidToken: Bool {
+        return NetworkManager.shared.hasValidToken()
+    }
+
     func login(email: String, password: String) async throws -> AuthResponse {
         print("🔐 [Auth] Starting login for \(email)...")
         let response = try await AuthService.shared.login(email: email, password: password)
@@ -113,7 +117,7 @@ class AuthManager {
 
     func syncFCMToken(_ fcmToken: String) async throws {
         // Await check for @MainActor NetworkManager property
-        guard NetworkManager.shared.hasValidToken() else { return }
+        guard self.hasValidToken else { return }
         try await UserService.shared.syncUser(fcmToken: fcmToken)
     }
 
@@ -123,13 +127,9 @@ class AuthManager {
         UserDefaults.standard.removeObject(forKey: userRoleKey)
     }
     
-    var hasValidToken: Bool {
-        return NetworkManager.shared.hasValidToken()
-    }
-    
     /// Proactively checks if the current session is still valid on this device
     func validateSession() async -> Bool {
-        guard hasValidToken else { return false }
+        guard self.hasValidToken else { return false }
         
         do {
             // Lightweight call to check status
