@@ -133,19 +133,18 @@ final class HomeViewController: UIViewController {
     }
     
     private func bindViewModel() {
-        viewModel.$sections
+        // ELITE: Synchronize layout and data updates to prevent "Invalid section definition" crashes
+        Publishers.CombineLatest(viewModel.$sections, viewModel.$isLoading)
             .receive(on: RunLoop.main)
-            .sink { [weak self] sections in
+            .sink { [weak self] sections, isLoading in
                 guard let self = self else { return }
-                self.collectionView.setCollectionViewLayout(HomeLayoutProvider.createLayout(sections: sections, isLoading: self.viewModel.isLoading), animated: false)
+                
+                // 1. Update layout first
+                let layout = HomeLayoutProvider.createLayout(sections: sections, isLoading: isLoading)
+                self.collectionView.setCollectionViewLayout(layout, animated: false)
+                
+                // 2. Then reload data
                 self.collectionView.reloadData()
-            }
-            .store(in: &cancellables)
-            
-        viewModel.$isLoading
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.collectionView.reloadData()
             }
             .store(in: &cancellables)
             
