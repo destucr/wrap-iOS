@@ -29,7 +29,7 @@ final class ReviewOrderViewController: UIViewController {
     
     nonisolated private enum RowItem: Hashable, Sendable {
         case address
-        case cartItem(CartItemDTO, message: String?)
+        case cartItem(CartItemDTO, message: String?, isLoading: Bool)
         case voucher
         case paymentMethod(LinkedAccount?)
         case pricing(CheckoutPreviewResponse?, Double, isLoading: Bool)
@@ -185,9 +185,9 @@ final class ReviewOrderViewController: UIViewController {
             case .address:
                 return tableView.dequeueReusableCell(withIdentifier: AddressCell.identifier, for: indexPath)
                 
-            case .cartItem(let cartItem, let message):
+            case .cartItem(let cartItem, let message, let isLoading):
                 let cell = tableView.dequeueReusableCell(withIdentifier: ReviewItemCell.identifier, for: indexPath) as! ReviewItemCell
-                if self.previewState.isLoading {
+                if isLoading {
                     cell.startLoading()
                 } else {
                     cell.configure(with: cartItem, message: message)
@@ -248,15 +248,15 @@ final class ReviewOrderViewController: UIViewController {
         
         snapshot.appendItems([.address], toSection: .address)
         
+        let isLoading = previewState.isLoading
         let itemRows = cartItems.map { item -> RowItem in
             let message = previewResponse?.items.first(where: { $0.variantId == item.variantId })?.message
-            return .cartItem(item, message: message)
+            return .cartItem(item, message: message, isLoading: isLoading)
         }
         snapshot.appendItems(itemRows, toSection: .items)
         
         snapshot.appendItems([.voucher, .paymentMethod(selectedAccount)], toSection: .payment)
         
-        let isLoading = previewState.isLoading
         snapshot.appendItems([.pricing(previewResponse, CartManager.shared.totalAmount, isLoading: isLoading)], toSection: .pricing)
         
         dataSource.apply(snapshot, animatingDifferences: true)
