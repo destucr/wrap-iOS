@@ -85,8 +85,6 @@ final class ReviewOrderViewController: UIViewController {
 
     override func viewWillDisappear(_ animated: Bool) {
          super.viewWillDisappear(animated)
-         // This makes sure the header comes back when you
-         // push a new screen or pop back to the previous one
          navigationController?.setNavigationBarHidden(false, animated: animated)
      }
 
@@ -100,41 +98,22 @@ final class ReviewOrderViewController: UIViewController {
     
     private func setupUI() {
         view.backgroundColor = Brand.secondary
-        title = "Ringkasan Pesanan"
-        navigationItem.backButtonDisplayMode = .minimal
+        title = "Tinjau Pesanan"
         
-        view.addSubview(tableView)
-        view.addSubview(emptyStateView)
-        view.addSubview(bottomPaymentBar)
+        [tableView, bottomPaymentBar, emptyStateView].forEach { view.addSubview($0) }
         
         bottomPaymentBar.backgroundColor = .white
-        bottomPaymentBar.addSubview(bottomSeparator)
-        bottomPaymentBar.addSubview(totalLabel)
-        bottomPaymentBar.addSubview(finalAmountLabel)
-        bottomPaymentBar.addSubview(payButton)
+        [finalAmountLabel, totalLabel, payButton, bottomSeparator].forEach { bottomPaymentBar.addSubview($0) }
+        bottomSeparator.backgroundColor = Brand.secondary
         
-        bottomSeparator.backgroundColor = UIColor(red: 0.90, green: 0.90, blue: 0.92, alpha: 1.0) // #E5E5EA
+        tableView.snp.makeConstraints { make in
+            make.top.leading.trailing.equalToSuperview()
+            make.bottom.equalTo(bottomPaymentBar.snp.top)
+        }
         
-        // Shadow for bottom bar
-        bottomPaymentBar.layer.shadowColor = UIColor.black.cgColor
-        bottomPaymentBar.layer.shadowOffset = CGSize(width: 0, height: -3)
-        bottomPaymentBar.layer.shadowRadius = 10
-        bottomPaymentBar.layer.shadowOpacity = 0.05
-        
-        tableView.register(AddressCell.self, forCellReuseIdentifier: AddressCell.identifier)
-        tableView.register(ReviewItemCell.self, forCellReuseIdentifier: ReviewItemCell.identifier)
-        tableView.register(VoucherCell.self, forCellReuseIdentifier: VoucherCell.identifier)
-        tableView.register(PaymentMethodCell.self, forCellReuseIdentifier: PaymentMethodCell.identifier)
-        tableView.register(PricingCell.self, forCellReuseIdentifier: PricingCell.identifier)
-        
-        tableView.delegate = self
-        tableView.dataSource = self
-        emptyStateView.recommendationsCollectionView.delegate = self
-        emptyStateView.recommendationsCollectionView.dataSource = self
-
         bottomPaymentBar.snp.makeConstraints { make in
             make.leading.trailing.bottom.equalToSuperview()
-            make.top.equalTo(view.safeAreaLayoutGuide.snp.bottom).offset(-80)
+            make.height.equalTo(100)
         }
         
         bottomSeparator.snp.makeConstraints { make in
@@ -143,44 +122,57 @@ final class ReviewOrderViewController: UIViewController {
         }
         
         totalLabel.snp.makeConstraints { make in
-            make.top.equalToSuperview().offset(12)
+            make.top.equalToSuperview().offset(18)
             make.leading.equalToSuperview().offset(20)
         }
         
         finalAmountLabel.snp.makeConstraints { make in
             make.top.equalTo(totalLabel.snp.bottom).offset(2)
-            make.leading.equalToSuperview().offset(20)
+            make.leading.equalTo(totalLabel)
         }
         
         payButton.snp.makeConstraints { make in
-            make.centerY.equalTo(bottomPaymentBar.snp.top).offset(40)
             make.trailing.equalToSuperview().offset(-20)
+            make.centerY.equalToSuperview()
             make.width.equalTo(160)
             make.height.equalTo(52)
         }
         
         emptyStateView.snp.makeConstraints { make in
-            make.edges.equalToSuperview() // Fill the entire screen
+            make.edges.equalTo(tableView)
         }
-
-        // Ensure the tableView follows the same logic if it isn't already
-        tableView.snp.makeConstraints { make in
-            make.top.leading.trailing.equalToSuperview()
-            make.bottom.equalTo(bottomPaymentBar.snp.top)
-        }
-
+        
+        tableView.dataSource = self
+        tableView.delegate = self
+        tableView.register(AddressCell.self, forCellReuseIdentifier: AddressCell.identifier)
+        tableView.register(ReviewItemCell.self, forCellReuseIdentifier: ReviewItemCell.identifier)
+        tableView.register(VoucherCell.self, forCellReuseIdentifier: VoucherCell.identifier)
+        tableView.register(PaymentMethodCell.self, forCellReuseIdentifier: PaymentMethodCell.identifier)
+        tableView.register(PricingCell.self, forCellReuseIdentifier: PricingCell.identifier)
+        
         payButton.addTarget(self, action: #selector(didTapPay), for: .touchUpInside)
-        emptyStateView.shopButton.addTarget(self, action: #selector(handleMulaiBelanja), for: .touchUpInside)
+    }
+    
+    private func updateUIState() {
+        self.cartItems = CartManager.shared.items
+        let isEmpty = cartItems.isEmpty
+        emptyStateView.isHidden = !isEmpty
+        tableView.isHidden = isEmpty
+        bottomPaymentBar.isHidden = isEmpty
+        
+        if !isEmpty {
+            fetchPreview()
+            tableView.reloadData()
+        }
     }
     
     private func fetchRecommendations() {
         Task {
             do {
-                let products: [Product] = try await NetworkManager.shared.request(endpoint: "/catalog/products")
-                self.recommendations = Array(products.prefix(10))
-                self.emptyStateView.recommendationsCollectionView.reloadData()
+                self.recommendations = try await CatalogService.shared.fetchProducts()
+                self.tableView.reloadData()
             } catch {
-                print("Failed to fetch recommendations: \(error)")
+                print("Recommendations failed: \(error)")
             }
         }
     }
@@ -188,61 +180,17 @@ final class ReviewOrderViewController: UIViewController {
     private func fetchLinkedAccounts() {
         Task {
             do {
-                self.linkedAccounts = try await PaymentService.shared.fetchLinkedAccounts()
-                self.selectedAccount = self.linkedAccounts.first(where: { $0.status == "ACTIVE" })
+                let response = try await PaymentService.shared.fetchLinkedAccounts()
+                self.linkedAccounts = response.accounts
+                if let ovo = linkedAccounts.first(where: { $0.channelCode == "ID_OVO" }) {
+                    self.selectedAccount = ovo
+                } else {
+                    self.selectedAccount = linkedAccounts.first
+                }
                 self.tableView.reloadData()
             } catch {
-                print("Failed to fetch accounts: \(error)")
+                print("Failed to fetch linked accounts: \(error)")
             }
-        }
-    }
-    
-    private func showPaymentMethodPicker() {
-        let alert = UIAlertController(title: "Pilih Metode Pembayaran", message: nil, preferredStyle: .actionSheet)
-        
-        for account in linkedAccounts {
-            let title = "\(account.channelCode.replacingOccurrences(of: "ID_", with: "")) - \(account.accountDetails)"
-            alert.addAction(UIAlertAction(title: title, style: .default, handler: { _ in
-                self.selectedAccount = account
-                self.tableView.reloadData()
-            }))
-        }
-        
-        alert.addAction(UIAlertAction(title: "Transfer Bank (Default)", style: .default, handler: { _ in
-            self.selectedAccount = nil
-            self.tableView.reloadData()
-        }))
-        
-        alert.addAction(UIAlertAction(title: "Batal", style: .cancel))
-        present(alert, animated: true)
-    }
-    
-    private func updateUIState() {
-        self.cartItems = CartManager.shared.items
-        let isEmpty = cartItems.isEmpty
-
-        navigationController?.setNavigationBarHidden(isEmpty, animated: true)
-
-        tableView.isHidden = isEmpty
-        bottomPaymentBar.isHidden = isEmpty
-        emptyStateView.isHidden = !isEmpty
-        
-        previewResponse = nil
-        tableView.reloadData()
-        updateSummary()
-        
-        if isEmpty {
-            navigationItem.title = ""
-            view.setNeedsLayout()
-        } else {
-            navigationItem.title = "Ringkasan Pesanan"
-            fetchPreview()
-        }
-
-        if let cartTab = tabBarController?.tabBar.items?[1] {
-            let count = CartManager.shared.totalCount
-            cartTab.badgeValue = count > 0 ? "\(count)" : nil
-            cartTab.badgeColor = Brand.primary
         }
     }
 
@@ -281,7 +229,6 @@ final class ReviewOrderViewController: UIViewController {
         case .success(let response):
             finalAmountLabel.text = response.total.formattedIDR
         case .error:
-            // Fallback to local sum if preview fails
             let total = CartManager.shared.totalAmount + 6000.0
             finalAmountLabel.text = total.formattedIDR
         }
@@ -315,20 +262,15 @@ final class ReviewOrderViewController: UIViewController {
                 if response.paymentUrl == "DIRECT_DEBIT_PAID" {
                     coordinator?.showOrderTracking(orderId: response.orderId.uuidString)
                 } else if selectedAccount != nil, let url = URL(string: response.paymentUrl) {
-                    // REQUIRES_ACTION flow for Linked Accounts (OVO/DANA PIN)
-                    // ELITE: Use ASWebAuthenticationSession for an "in-app" feel with automatic redirect capture
                     let session = ASWebAuthenticationSession(url: url, callbackURLScheme: "wrapapp") { [weak self] callbackURL, error in
                         if let url = callbackURL, url.absoluteString.contains("success") {
                             let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
                             let orderId = components?.queryItems?.first(where: { $0.name == "order_id" })?.value ?? response.orderId.uuidString
                             self?.coordinator?.showOrderSuccess(orderId: orderId, paymentUrl: "DIRECT_DEBIT_PAID")
                         } else {
-                            // Reset state if cancelled, failed, or not success
                             self?.resetPayButton()
                             if error == nil && callbackURL == nil {
-                                // User just closed the session
                             } else if let url = callbackURL {
-                                // User reached a page but it wasn't success (maybe failure URL)
                                 self?.coordinator?.showOrderHistory()
                             }
                         }
@@ -343,12 +285,32 @@ final class ReviewOrderViewController: UIViewController {
             } catch {
                 print("Order placement failed: \(error)")
                 self.resetPayButton()
-                
                 let alert = UIAlertController(title: "Gagal", message: "Gagal membuat pesanan. Silakan coba lagi.", preferredStyle: .alert)
                 alert.addAction(UIAlertAction(title: "OK", style: .default))
                 present(alert, animated: true)
             }
         }
+    }
+
+    private func showPaymentMethodPicker() {
+        let alert = UIAlertController(title: "Metode Pembayaran", message: "Pilih e-wallet untuk pembayaran instan", preferredStyle: .actionSheet)
+        for account in linkedAccounts {
+            let channel = account.channelCode.replacingOccurrences(of: "ID_", with: "")
+            alert.addAction(UIAlertAction(title: "\(channel) (\(account.accountDetails))", style: .default) { _ in
+                self.selectedAccount = account
+                self.tableView.reloadData()
+            })
+        }
+        alert.addAction(UIAlertAction(title: "+ Hubungkan Akun Baru", style: .default) { _ in
+            let vc = PaymentMethodsViewController()
+            self.navigationController?.pushViewController(vc, animated: true)
+        })
+        alert.addAction(UIAlertAction(title: "Transfer Bank / Manual", style: .default) { _ in
+            self.selectedAccount = nil
+            self.tableView.reloadData()
+        })
+        alert.addAction(UIAlertAction(title: "Batal", style: .cancel))
+        present(alert, animated: true)
     }
 }
 
@@ -360,32 +322,37 @@ extension ReviewOrderViewController: UITableViewDelegate, UITableViewDataSource 
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         switch section {
-        case 0: return 1 // Address
-        case 1: return cartItems.count // Items
-        case 2: return 2 // Voucher + Payment Method
-        case 3: return 1 // Pricing Summary Card
+        case 0: return 1
+        case 1: return cartItems.count
+        case 2: return 2
+        case 3: return 1
         default: return 0
         }
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let isLoading = (previewState == .loading)
+        
         switch indexPath.section {
         case 0:
             let cell = tableView.dequeueReusableCell(withIdentifier: AddressCell.identifier, for: indexPath) as! AddressCell
             return cell
         case 1:
             let cell = tableView.dequeueReusableCell(withIdentifier: ReviewItemCell.identifier, for: indexPath) as! ReviewItemCell
-            let item = cartItems[indexPath.row]
-            let previewItem = previewResponse?.items.first(where: { $0.variantId == item.variantId })
-            cell.configure(with: item, message: previewItem?.message)
-            cell.onQuantityChange = { [weak self] newQty in
-                CartManager.shared.setQuantity(variantId: item.variantId, quantity: newQty, name: item.name, price: item.price)
+            if isLoading {
+                cell.startLoading()
+            } else {
+                let item = cartItems[indexPath.row]
+                let previewItem = previewResponse?.items.first(where: { $0.variantId == item.variantId })
+                cell.configure(with: item, message: previewItem?.message)
+                cell.onQuantityChange = { [weak self] newQty in
+                    CartManager.shared.setQuantity(variantId: item.variantId, quantity: newQty, name: item.name, price: item.price)
+                }
             }
             return cell
         case 2:
             if indexPath.row == 0 {
-                let cell = tableView.dequeueReusableCell(withIdentifier: VoucherCell.identifier, for: indexPath) as! VoucherCell
-                return cell
+                return tableView.dequeueReusableCell(withIdentifier: VoucherCell.identifier, for: indexPath)
             } else {
                 let cell = tableView.dequeueReusableCell(withIdentifier: PaymentMethodCell.identifier, for: indexPath) as! PaymentMethodCell
                 if let account = selectedAccount {
@@ -397,7 +364,9 @@ extension ReviewOrderViewController: UITableViewDelegate, UITableViewDataSource 
             }
         case 3:
             let cell = tableView.dequeueReusableCell(withIdentifier: PricingCell.identifier, for: indexPath) as! PricingCell
-            if let response = previewResponse {
+            if isLoading {
+                cell.startLoading()
+            } else if let response = previewResponse {
                 cell.configure(with: response)
             } else {
                 cell.configure(subtotal: CartManager.shared.totalAmount)
@@ -430,35 +399,15 @@ extension ReviewOrderViewController: SFSafariViewControllerDelegate {
     }
 }
 
-// MARK: - Recommendations
-extension ReviewOrderViewController: UICollectionViewDelegate, UICollectionViewDataSource {
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return recommendations.count
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCardView.identifier, for: indexPath) as! ProductCardView
-        cell.configure(with: recommendations[indexPath.item])
-        return cell
-    }
-
-    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-         let product = recommendations[indexPath.item]
-         navigationController?.setNavigationBarHidden(false, animated: true)
-         coordinator?.showProductDetail(productId: product.id)
-    }
-}
-
 // MARK: - Redesigned Cells
 
 final class AddressCell: UITableViewCell {
     static let identifier = "AddressCell"
     private let container = UIView()
     private let iconView = UIImageView(image: UIImage(systemName: "mappin.circle.fill"))
-    private let labelStack = UIStackView()
-    private let nameLabel = UILabel()
-    private let addressLabel = UILabel()
-    private let editIcon = UIImageView(image: UIImage(systemName: "pencil"))
+    private let titleLabel = UILabel()
+    private let subtitleLabel = UILabel()
+    private let editIcon = UIImageView(image: UIImage(systemName: "chevron.right"))
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -469,33 +418,27 @@ final class AddressCell: UITableViewCell {
     private func setupUI() {
         backgroundColor = .clear
         selectionStyle = .none
-        
         contentView.addSubview(container)
         container.backgroundColor = .white
         container.roundCorners()
-        
-        // Shadow: black 6% opacity, blur 6pt
-        container.applyShadow(opacity: 0.06, radius: 6)
+        container.applyShadow(opacity: 0.04, radius: 4, offset: CGSize(width: 0, height: 1))
         
         container.snp.makeConstraints { make in
-            make.edges.equalToSuperview().inset(UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16))
+            make.edges.equalToSuperview().inset(UIEdgeInsets(top: 8, left: 16, bottom: 4, right: 16))
         }
         
         iconView.tintColor = Brand.primary
-        iconView.contentMode = .scaleAspectFit
+        titleLabel.text = "Alamat Pengiriman"
+        titleLabel.font = .systemFont(ofSize: 12, weight: .regular)
+        titleLabel.textColor = Brand.Text.secondary
         
-        nameLabel.text = "Destu"
-        nameLabel.font = .systemFont(ofSize: 15, weight: .bold)
+        subtitleLabel.text = "Jl. Merdeka No. 12, Jakarta Pusat"
+        subtitleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+        subtitleLabel.textColor = Brand.Text.primary
         
-        addressLabel.text = "Jl. Merdeka No. 12, Floor 4, Unit 402"
-        addressLabel.font = .systemFont(ofSize: 14)
-        addressLabel.textColor = Brand.Text.secondary
-        addressLabel.numberOfLines = 2
-        
+        let labelStack = UIStackView(arrangedSubviews: [titleLabel, subtitleLabel])
         labelStack.axis = .vertical
         labelStack.spacing = 2
-        labelStack.addArrangedSubview(nameLabel)
-        labelStack.addArrangedSubview(addressLabel)
         
         editIcon.tintColor = Brand.Text.secondary
         editIcon.contentMode = .scaleAspectFit
@@ -529,11 +472,17 @@ final class ReviewItemCell: UITableViewCell {
     private let nameLabel = UILabel()
     private let priceLabel = UILabel()
     private let stepper = RedesignedStepper()
+    
+    private let thumbnailSkeleton = SkeletonView()
+    private let nameSkeleton = SkeletonView()
+    private let priceSkeleton = SkeletonView()
+    
     var onQuantityChange: ((Int) -> Void)?
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
+        setupSkeleton()
     }
     required init?(coder: NSCoder) { fatalError() }
     
@@ -592,11 +541,52 @@ final class ReviewItemCell: UITableViewCell {
         }
     }
     
+    private func setupSkeleton() {
+        [thumbnailSkeleton, nameSkeleton, priceSkeleton].forEach { container.addSubview($0) }
+        thumbnailSkeleton.snp.makeConstraints { make in
+            make.edges.equalTo(thumbnail)
+        }
+        nameSkeleton.snp.makeConstraints { make in
+            make.top.equalTo(nameLabel)
+            make.leading.equalTo(nameLabel)
+            make.width.equalTo(120)
+            make.height.equalTo(16)
+        }
+        priceSkeleton.snp.makeConstraints { make in
+            make.top.equalTo(priceLabel)
+            make.leading.equalTo(priceLabel)
+            make.width.equalTo(60)
+            make.height.equalTo(14)
+        }
+        [thumbnailSkeleton, nameSkeleton, priceSkeleton].forEach { $0.isHidden = true }
+    }
+    
+    func startLoading() {
+        [thumbnailSkeleton, nameSkeleton, priceSkeleton].forEach {
+            $0.isHidden = false
+            $0.start()
+        }
+        [thumbnail, nameLabel, priceLabel, stepper].forEach { $0.isHidden = true }
+    }
+    
+    func stopLoading() {
+        [thumbnailSkeleton, nameSkeleton, priceSkeleton].forEach {
+            $0.stop()
+            $0.isHidden = true
+        }
+        [thumbnail, nameLabel, priceLabel, stepper].forEach { $0.isHidden = false }
+    }
+    
     func configure(with item: CartItem, message: String? = nil) {
+        stopLoading()
         nameLabel.text = item.name
         priceLabel.text = item.price.formattedIDR
         stepper.value = item.quantity
-        // Note: thumbnail loading would go here if URL is available in CartItem
+    }
+    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        stopLoading()
     }
 }
 
@@ -726,6 +716,7 @@ final class PricingCell: UITableViewCell {
     static let identifier = "PricingCell"
     private let container = UIView()
     private let stack = UIStackView()
+    private let skeleton = SkeletonView()
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -747,9 +738,29 @@ final class PricingCell: UITableViewCell {
         stack.spacing = 0
         container.addSubview(stack)
         stack.snp.makeConstraints { make in make.edges.equalToSuperview().inset(8) }
+        
+        container.addSubview(skeleton)
+        skeleton.isHidden = true
+        skeleton.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(12)
+            make.height.equalTo(120)
+        }
+    }
+    
+    func startLoading() {
+        skeleton.isHidden = false
+        skeleton.start()
+        stack.isHidden = true
+    }
+    
+    func stopLoading() {
+        skeleton.stop()
+        skeleton.isHidden = true
+        stack.isHidden = false
     }
     
     func configure(subtotal: Double) {
+        stopLoading()
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         stack.addArrangedSubview(createRow(label: "Ringkasan Pesanan", value: subtotal.formattedIDR))
         stack.addArrangedSubview(createDivider())
@@ -761,6 +772,7 @@ final class PricingCell: UITableViewCell {
     }
     
     func configure(with response: CheckoutPreviewResponse) {
+        stopLoading()
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         stack.addArrangedSubview(createRow(label: "Ringkasan Pesanan", value: response.subtotal.formattedIDR))
         stack.addArrangedSubview(createDivider())

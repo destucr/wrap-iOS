@@ -46,11 +46,19 @@ final class CategoryCell: UICollectionViewCell {
     }
     
     func configure(with category: CatalogCategory) {
+        stopShimmering()
         titleLabel.text = category.name
         if let iconUrl = category.iconUrl, let url = URL(string: iconUrl) {
             iconView.kf.setImage(with: url)
         } else {
             iconView.image = nil
         }
+    }
+    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        stopShimmering()
+        titleLabel.text = nil
+        iconView.image = nil
     }
 }

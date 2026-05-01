@@ -64,9 +64,15 @@ final class ProductCardView: UICollectionViewCell {
     
     private let stepper = InteractiveStepper()
     
+    private let skeletonContainer = UIView()
+    private let imageSkeleton = SkeletonView()
+    private let nameSkeleton = SkeletonView()
+    private let priceSkeleton = SkeletonView()
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupUI()
+        setupSkeleton()
     }
     
     required init?(coder: NSCoder) {
@@ -82,6 +88,7 @@ final class ProductCardView: UICollectionViewCell {
         unitLabel.text = nil
         scarcityLabel.isHidden = true
         stepper.setValue(0)
+        stopLoading()
     }
     
     private func setupUI() {
@@ -137,7 +144,51 @@ final class ProductCardView: UICollectionViewCell {
         }
     }
     
+    private func setupSkeleton() {
+        skeletonContainer.backgroundColor = .white
+        skeletonContainer.isHidden = true
+        contentView.addSubview(skeletonContainer)
+        skeletonContainer.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+        
+        [imageSkeleton, nameSkeleton, priceSkeleton].forEach { skeletonContainer.addSubview($0) }
+        
+        imageSkeleton.snp.makeConstraints { make in
+            make.top.leading.trailing.equalToSuperview().inset(8)
+            make.height.equalTo(imageSkeleton.snp.width)
+        }
+        
+        nameSkeleton.snp.makeConstraints { make in
+            make.top.equalTo(imageSkeleton.snp.bottom).offset(8)
+            make.leading.trailing.equalToSuperview().inset(10)
+            make.height.equalTo(16)
+        }
+        
+        priceSkeleton.snp.makeConstraints { make in
+            make.top.equalTo(nameSkeleton.snp.bottom).offset(8)
+            make.leading.equalToSuperview().offset(10)
+            make.width.equalTo(60)
+            make.height.equalTo(14)
+        }
+    }
+    
+    func startLoading() {
+        skeletonContainer.isHidden = false
+        imageSkeleton.start()
+        nameSkeleton.start()
+        priceSkeleton.start()
+    }
+    
+    func stopLoading() {
+        skeletonContainer.isHidden = true
+        imageSkeleton.stop()
+        nameSkeleton.stop()
+        priceSkeleton.stop()
+    }
+    
     func configure(with product: Product) {
+        stopLoading()
         self.product = product
         nameLabel.text = product.name
         priceLabel.text = product.basePrice.formattedIDR

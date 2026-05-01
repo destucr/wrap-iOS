@@ -6,9 +6,9 @@ final class OrderDetailViewController: UIViewController {
     weak var coordinator: MainCoordinator?
     private let orderId: UUID
     private var orderDetail: OrderDetailResponse?
+    private var isLoading = false
     
     private let tableView = UITableView(frame: .zero, style: .insetGrouped)
-    private let activityIndicator = UIActivityIndicatorView(style: .large)
     
     init(orderId: UUID) {
         self.orderId = orderId
@@ -33,7 +33,6 @@ final class OrderDetailViewController: UIViewController {
         view.backgroundColor = .systemGroupedBackground
         
         view.addSubview(tableView)
-        view.addSubview(activityIndicator)
         
         tableView.delegate = self
         tableView.dataSource = self
@@ -43,23 +42,21 @@ final class OrderDetailViewController: UIViewController {
         tableView.snp.makeConstraints { make in
             make.edges.equalToSuperview()
         }
-        
-        activityIndicator.snp.makeConstraints { make in
-            make.center.equalToSuperview()
-        }
     }
     
     private func fetchOrderDetail() {
-        activityIndicator.startAnimating()
+        isLoading = true
+        tableView.reloadData()
         Task {
             do {
                 let resp = try await UserService.shared.fetchOrderDetail(id: orderId)
                 self.orderDetail = resp
-                activityIndicator.stopAnimating()
+                self.isLoading = false
                 self.tableView.reloadData()
             } catch {
-                activityIndicator.stopAnimating()
+                self.isLoading = false
                 print("Error fetching order detail: \(error)")
+                self.tableView.reloadData()
             }
         }
     }
@@ -83,11 +80,16 @@ final class OrderDetailViewController: UIViewController {
 
 extension OrderDetailViewController: UITableViewDelegate, UITableViewDataSource {
     func numberOfSections(in tableView: UITableView) -> Int {
+        if isLoading { return 2 }
         guard orderDetail != nil else { return 0 }
         return 3 // Info, Items, Rating
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        if isLoading {
+            if section == 0 { return 3 }
+            return 2
+        }
         guard let detail = orderDetail else { return 0 }
         if section == 0 { return 3 } // ID, Status, Total
         if section == 1 { return detail.items.count }
@@ -96,6 +98,10 @@ extension OrderDetailViewController: UITableViewDelegate, UITableViewDataSource 
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        if isLoading {
+            if section == 0 { return "Ringkasan" }
+            return "Produk yang Dibeli"
+        }
         if section == 0 { return "Ringkasan" }
         if section == 1 { return "Produk yang Dibeli" }
         if section == 2 && orderDetail?.paymentStatus == .paid { return "Beri Nilai Pesanan" }
@@ -103,6 +109,19 @@ extension OrderDetailViewController: UITableViewDelegate, UITableViewDataSource 
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        if isLoading {
+            if indexPath.section == 0 {
+                let cell = UITableViewCell(style: .value1, reuseIdentifier: nil)
+                cell.textLabel?.text = "---"
+                cell.detailTextLabel?.text = "---"
+                return cell
+            } else {
+                let cell = tableView.dequeueReusableCell(withIdentifier: OrderItemDetailCell.identifier, for: indexPath) as! OrderItemDetailCell
+                cell.startLoading()
+                return cell
+            }
+        }
+        
         guard let detail = orderDetail else { return UITableViewCell() }
         
         if indexPath.section == 0 {
@@ -145,9 +164,14 @@ final class OrderItemDetailCell: UITableViewCell {
     private let variantLabel = UILabel()
     private let priceLabel = UILabel()
     
+    private let nameSkeleton = SkeletonView()
+    private let variantSkeleton = SkeletonView()
+    private let priceSkeleton = SkeletonView()
+    
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
+        setupSkeleton()
     }
     
     required init?(coder: NSCoder) { fatalError() }
@@ -155,7 +179,7 @@ final class OrderItemDetailCell: UITableViewCell {
     private func setupUI() {
         selectionStyle = .none
         let stack = UIStackView(arrangedSubviews: [nameLabel, variantLabel, priceLabel])
-        stack.axis = .vertical; stack.spacing = 2
+        stack.axis = .vertical; stack.spacing = 4
         contentView.addSubview(stack)
         stack.snp.makeConstraints { make in make.edges.equalToSuperview().inset(12) }
         
@@ -164,10 +188,46 @@ final class OrderItemDetailCell: UITableViewCell {
         priceLabel.font = .systemFont(ofSize: 14, weight: .semibold); priceLabel.textColor = Brand.primary
     }
     
+    private func setupSkeleton() {
+        [nameSkeleton, variantSkeleton, priceSkeleton].forEach { contentView.addSubview($0) }
+        nameSkeleton.snp.makeConstraints { make in
+            make.top.leading.equalToSuperview().inset(12)
+            make.width.equalTo(150); make.height.equalTo(18)
+        }
+        variantSkeleton.snp.makeConstraints { make in
+            make.top.equalTo(nameSkeleton.snp.bottom).offset(6)
+            make.leading.equalToSuperview().inset(12)
+            make.width.equalTo(100); make.height.equalTo(14)
+        }
+        priceSkeleton.snp.makeConstraints { make in
+            make.top.equalTo(variantSkeleton.snp.bottom).offset(6)
+            make.leading.equalToSuperview().inset(12)
+            make.width.equalTo(80); make.height.equalTo(16)
+            make.bottom.equalToSuperview().inset(12)
+        }
+        [nameSkeleton, variantSkeleton, priceSkeleton].forEach { $0.isHidden = true }
+    }
+    
+    func startLoading() {
+        [nameSkeleton, variantSkeleton, priceSkeleton].forEach { $0.isHidden = false; $0.start() }
+        [nameLabel, variantLabel, priceLabel].forEach { $0.isHidden = true }
+    }
+    
+    func stopLoading() {
+        [nameSkeleton, variantSkeleton, priceSkeleton].forEach { $0.stop(); $0.isHidden = true }
+        [nameLabel, variantLabel, priceLabel].forEach { $0.isHidden = false }
+    }
+    
     func configure(with item: OrderItem) {
+        stopLoading()
         nameLabel.text = item.productName
         variantLabel.text = "\(item.variantName) x \(item.quantity)"
         priceLabel.text = (item.priceAtPurchase * Double(item.quantity)).formattedIDR
+    }
+    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        stopLoading()
     }
 }
 

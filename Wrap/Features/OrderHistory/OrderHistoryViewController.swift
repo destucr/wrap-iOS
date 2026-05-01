@@ -4,35 +4,20 @@ import SnapKit
 class OrderCell: UITableViewCell {
     static let identifier = "OrderCell"
     
-    private let orderIdLabel: UILabel = {
-        let label = UILabel()
-        label.font = .systemFont(ofSize: 16, weight: .bold)
-        return label
-    }()
+    private let orderIdLabel = UILabel()
+    private let statusLabel = UILabel()
+    private let amountLabel = UILabel()
+    private let dateLabel = UILabel()
     
-    private let statusLabel: UILabel = {
-        let label = UILabel()
-        label.font = .systemFont(ofSize: 14, weight: .semibold)
-        return label
-    }()
-    
-    private let amountLabel: UILabel = {
-        let label = UILabel()
-        label.font = .systemFont(ofSize: 16, weight: .medium)
-        label.textAlignment = .right
-        return label
-    }()
-    
-    private let dateLabel: UILabel = {
-        let label = UILabel()
-        label.font = .systemFont(ofSize: 12)
-        label.textColor = .secondaryLabel
-        return label
-    }()
+    private let idSkeleton = SkeletonView()
+    private let dateSkeleton = SkeletonView()
+    private let amountSkeleton = SkeletonView()
+    private let statusSkeleton = SkeletonView()
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
+        setupSkeleton()
     }
     
     required init?(coder: NSCoder) {
@@ -40,10 +25,14 @@ class OrderCell: UITableViewCell {
     }
     
     private func setupUI() {
-        contentView.addSubview(orderIdLabel)
-        contentView.addSubview(statusLabel)
-        contentView.addSubview(amountLabel)
-        contentView.addSubview(dateLabel)
+        orderIdLabel.font = .systemFont(ofSize: 16, weight: .bold)
+        statusLabel.font = .systemFont(ofSize: 14, weight: .semibold)
+        amountLabel.font = .systemFont(ofSize: 16, weight: .medium)
+        amountLabel.textAlignment = .right
+        dateLabel.font = .systemFont(ofSize: 12)
+        dateLabel.textColor = .secondaryLabel
+        
+        [orderIdLabel, statusLabel, amountLabel, dateLabel].forEach { contentView.addSubview($0) }
         
         orderIdLabel.snp.makeConstraints { make in
             make.top.leading.equalToSuperview().inset(16)
@@ -65,7 +54,51 @@ class OrderCell: UITableViewCell {
         }
     }
     
+    private func setupSkeleton() {
+        [idSkeleton, dateSkeleton, amountSkeleton, statusSkeleton].forEach { contentView.addSubview($0) }
+        idSkeleton.snp.makeConstraints { make in
+            make.top.leading.equalToSuperview().inset(16)
+            make.width.equalTo(100)
+            make.height.equalTo(18)
+        }
+        dateSkeleton.snp.makeConstraints { make in
+            make.top.equalTo(idSkeleton.snp.bottom).offset(6)
+            make.leading.equalToSuperview().inset(16)
+            make.width.equalTo(120)
+            make.height.equalTo(14)
+        }
+        amountSkeleton.snp.makeConstraints { make in
+            make.top.trailing.equalToSuperview().inset(16)
+            make.width.equalTo(80)
+            make.height.equalTo(18)
+        }
+        statusSkeleton.snp.makeConstraints { make in
+            make.trailing.equalToSuperview().inset(16)
+            make.centerY.equalTo(dateSkeleton)
+            make.width.equalTo(60)
+            make.height.equalTo(14)
+        }
+        [idSkeleton, dateSkeleton, amountSkeleton, statusSkeleton].forEach { $0.isHidden = true }
+    }
+    
+    func startLoading() {
+        [idSkeleton, dateSkeleton, amountSkeleton, statusSkeleton].forEach {
+            $0.isHidden = false
+            $0.start()
+        }
+        [orderIdLabel, statusLabel, amountLabel, dateLabel].forEach { $0.isHidden = true }
+    }
+    
+    func stopLoading() {
+        [idSkeleton, dateSkeleton, amountSkeleton, statusSkeleton].forEach {
+            $0.stop()
+            $0.isHidden = true
+        }
+        [orderIdLabel, statusLabel, amountLabel, dateLabel].forEach { $0.isHidden = false }
+    }
+    
     func configure(with order: Order) {
+        stopLoading()
         orderIdLabel.text = "Order #\(order.id.uuidString.prefix(8))"
         amountLabel.text = order.totalAmount.formattedIDR
         statusLabel.text = order.paymentStatus.rawValue
@@ -81,15 +114,20 @@ class OrderCell: UITableViewCell {
         case .cancelled: statusLabel.textColor = .systemRed
         }
     }
+    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        stopLoading()
+    }
 }
 
 class OrderHistoryViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
     private var orders: [Order] = []
+    private var isLoading = false
     private let tableView = UITableView()
     private let refreshControl = UIRefreshControl()
-    private let activityIndicator = UIActivityIndicatorView(style: .large)
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -107,7 +145,6 @@ class OrderHistoryViewController: UIViewController {
         view.backgroundColor = .systemBackground
         
         view.addSubview(tableView)
-        view.addSubview(activityIndicator)
         
         tableView.delegate = self
         tableView.dataSource = self
@@ -120,10 +157,6 @@ class OrderHistoryViewController: UIViewController {
             make.top.leading.trailing.equalToSuperview()
             make.bottom.equalTo(view.safeAreaLayoutGuide)
         }
-        
-        activityIndicator.snp.makeConstraints { make in
-            make.center.equalToSuperview()
-        }
     }
 
     @objc private func handleRefresh() {
@@ -131,18 +164,22 @@ class OrderHistoryViewController: UIViewController {
     }
     
     private func fetchOrders(showLoading: Bool = true) {
-        if showLoading { activityIndicator.startAnimating() }
+        if showLoading {
+            self.isLoading = true
+            self.tableView.reloadData()
+        }
         Task {
             do {
                 let fetchedOrders = try await UserService.shared.fetchOrderHistory()
-                if showLoading { activityIndicator.stopAnimating() }
+                self.isLoading = false
                 refreshControl.endRefreshing()
                 self.orders = fetchedOrders.sorted(by: { $0.createdAt > $1.createdAt })
                 self.tableView.reloadData()
             } catch {
-                if showLoading { activityIndicator.stopAnimating() }
+                self.isLoading = false
                 refreshControl.endRefreshing()
                 print("Failed to fetch orders: \(error)")
+                self.tableView.reloadData()
             }
         }
     }
@@ -150,18 +187,21 @@ class OrderHistoryViewController: UIViewController {
 
 extension OrderHistoryViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return orders.count
+        return isLoading ? 8 : orders.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let cell = tableView.dequeueReusableCell(withIdentifier: OrderCell.identifier, for: indexPath) as? OrderCell else {
-            return UITableViewCell()
+        let cell = tableView.dequeueReusableCell(withIdentifier: OrderCell.identifier, for: indexPath) as! OrderCell
+        if isLoading {
+            cell.startLoading()
+        } else {
+            cell.configure(with: orders[indexPath.row])
         }
-        cell.configure(with: orders[indexPath.row])
         return cell
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        guard !isLoading else { return }
         tableView.deselectRow(at: indexPath, animated: true)
         let order = orders[indexPath.row]
         coordinator?.showOrderDetail(orderId: order.id)

@@ -20,8 +20,15 @@ final class BannerCell: UICollectionViewCell {
     required init?(coder: NSCoder) { fatalError() }
     
     func configure(with banner: PromoBanner) {
+        stopShimmering()
         if let url = URL(string: banner.imageUrl) {
             imageView.kf.setImage(with: url, placeholder: UIImage(named: "banner_placeholder"))
         }
+    }
+    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        stopShimmering()
+        imageView.image = nil
     }
 }

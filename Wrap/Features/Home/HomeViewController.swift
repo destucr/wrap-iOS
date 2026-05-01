@@ -137,8 +137,15 @@ final class HomeViewController: UIViewController {
             .receive(on: RunLoop.main)
             .sink { [weak self] sections in
                 guard let self = self else { return }
-                self.collectionView.setCollectionViewLayout(HomeLayoutProvider.createLayout(sections: sections), animated: false)
+                self.collectionView.setCollectionViewLayout(HomeLayoutProvider.createLayout(sections: sections, isLoading: self.viewModel.isLoading), animated: false)
                 self.collectionView.reloadData()
+            }
+            .store(in: &cancellables)
+            
+        viewModel.$isLoading
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.collectionView.reloadData()
             }
             .store(in: &cancellables)
             
@@ -164,10 +171,16 @@ final class HomeViewController: UIViewController {
 
 extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelegate {
     func numberOfSections(in collectionView: UICollectionView) -> Int {
-        return viewModel.sections.count
+        return viewModel.isLoading ? 3 : viewModel.sections.count
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        if viewModel.isLoading {
+            if section == 0 { return 1 } // Banner
+            if section == 1 { return 5 } // Categories
+            return 4 // Products
+        }
+        
         switch viewModel.sections[section] {
         case .banners(let banners): return banners.count
         case .categories(let categories): return categories.count
@@ -176,15 +189,33 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        if viewModel.isLoading {
+            if indexPath.section == 0 {
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
+                cell.startShimmering()
+                return cell
+            } else if indexPath.section == 1 {
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
+                cell.startShimmering()
+                return cell
+            } else {
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCardView.identifier, for: indexPath) as! ProductCardView
+                cell.startLoading()
+                return cell
+            }
+        }
+        
         let section = viewModel.sections[indexPath.section]
         
         switch section {
         case .banners(let banners):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
+            cell.stopShimmering()
             cell.configure(with: banners[indexPath.item])
             return cell
         case .categories(let categories):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
+            cell.stopShimmering()
             cell.configure(with: categories[indexPath.item])
             return cell
         case .products(_, let items):
@@ -206,6 +237,7 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        guard !viewModel.isLoading else { return }
         let section = viewModel.sections[indexPath.section]
         switch section {
         case .categories(let categories):
