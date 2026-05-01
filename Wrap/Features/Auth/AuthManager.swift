@@ -123,9 +123,13 @@ class AuthManager {
         UserDefaults.standard.removeObject(forKey: userRoleKey)
     }
     
+    var hasValidToken: Bool {
+        return NetworkManager.shared.hasValidToken()
+    }
+    
     /// Proactively checks if the current session is still valid on this device
     func validateSession() async -> Bool {
-        guard hasValidToken() else { return false }
+        guard hasValidToken else { return false }
         
         do {
             // Lightweight call to check status
