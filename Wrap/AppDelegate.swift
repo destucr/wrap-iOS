@@ -34,8 +34,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, MessagingDelegate, UNUser
         IQKeyboardManager.shared.resignOnTouchOutside = true
 
         NotificationCenter.default.addObserver(forName: .unauthorizedAccess, object: nil, queue: .main) { _ in
-            if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate {
-                sceneDelegate.coordinator?.showLogin()
+            Task {
+                // ELITE: Clear all session data before redirecting
+                AuthManager.shared.logout()
+                CartManager.shared.clear()
+                
+                if let sceneDelegate = UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate {
+                    sceneDelegate.coordinator?.showLogin()
+                }
             }
         }
 

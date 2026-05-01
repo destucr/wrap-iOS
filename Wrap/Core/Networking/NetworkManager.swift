@@ -9,6 +9,8 @@ enum NetworkError: Error {
     case decodingError
     case serverError(String)
     case unauthorized // 401
+    case forbidden    // 403
+    case deviceMismatch // 403 with code DEVICE_MISMATCH
     case notFound     // 404
     case conflict     // 409
 }
@@ -103,6 +105,18 @@ class NetworkManager {
 
         if httpResponse.statusCode == 401 {
             throw NetworkError.unauthorized
+        }
+
+        if httpResponse.statusCode == 403 {
+            // Check for DEVICE_MISMATCH
+            if let body = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let code = body["code"] as? String, code == "DEVICE_MISMATCH" {
+                await MainActor.run {
+                    NotificationCenter.default.post(name: .unauthorizedAccess, object: nil)
+                }
+                throw NetworkError.deviceMismatch
+            }
+            throw NetworkError.forbidden
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
