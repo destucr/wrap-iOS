@@ -7,27 +7,27 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var coordinator: MainCoordinator?
     var container: ModelContainer?
 
-    private enum StartupCheckResult {
+    private enum StartupCheckResult: Sendable {
         case finished(Bool)
         case timeout
     }
 
     private func performStartupCheck() {
         Task {
-            let result = await withTaskGroup(of: StartupCheckResult.self) { group in
+            let result = await withTaskGroup(of: StartupCheckResult.self) { group -> StartupCheckResult in
                 group.addTask {
                     let isValid = await AuthManager.shared.validateSession()
-                    return .finished(isValid)
+                    return StartupCheckResult.finished(isValid)
                 }
                 
                 group.addTask {
                     try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
-                    return .timeout
+                    return StartupCheckResult.timeout
                 }
                 
                 guard let first = await group.next() else {
                     group.cancelAll()
-                    return .finished(false)
+                    return StartupCheckResult.finished(false)
                 }
                 
                 group.cancelAll()
