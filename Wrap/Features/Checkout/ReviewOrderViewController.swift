@@ -16,9 +16,11 @@ final class ReviewOrderViewController: UIViewController {
     private var previewResponse: CheckoutPreviewResponse?
     private var previewTask: Task<Void, Never>?
     private var previewState: ViewState<CheckoutPreviewResponse> = .idle
+    private var userProfile: UserData?
     private var cancellables = Set<AnyCancellable>()
     
     // Diffable Data Source Types
+    // Swift 6: Mark as nonisolated and Sendable for use in DataSource
     nonisolated private enum Section: Int, CaseIterable, Hashable, Sendable {
         case address
         case items
@@ -28,7 +30,7 @@ final class ReviewOrderViewController: UIViewController {
     }
     
     nonisolated private enum RowItem: Hashable, Sendable {
-        case address
+        case address(String)
         case cartItem(CartItemDTO, message: String?, isLoading: Bool)
         case voucher
         case paymentMethod(LinkedAccount?)
@@ -89,6 +91,7 @@ final class ReviewOrderViewController: UIViewController {
         setupObservers()
         fetchRecommendations()
         fetchLinkedAccounts()
+        fetchProfile()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -182,8 +185,10 @@ final class ReviewOrderViewController: UIViewController {
             guard let self = self else { return nil }
             
             switch item {
-            case .address:
-                return tableView.dequeueReusableCell(withIdentifier: AddressCell.identifier, for: indexPath)
+            case .address(let text):
+                let cell = tableView.dequeueReusableCell(withIdentifier: AddressCell.identifier, for: indexPath) as! AddressCell
+                cell.configure(address: text)
+                return cell
                 
             case .cartItem(let cartItem, let message, let isLoading):
                 let cell = tableView.dequeueReusableCell(withIdentifier: ReviewItemCell.identifier, for: indexPath) as! ReviewItemCell
@@ -224,7 +229,7 @@ final class ReviewOrderViewController: UIViewController {
                 return UITableViewCell()
             }
         }
-        dataSource.defaultRowAnimation = .fade
+        dataSource.defaultRowAnimation = UITableView.RowAnimation.fade
     }
     
     private func updateUIState() {
@@ -244,20 +249,21 @@ final class ReviewOrderViewController: UIViewController {
     
     private func applySnapshot() {
         var snapshot = Snapshot()
-        snapshot.appendSections([.address, .items, .payment, .pricing])
+        snapshot.appendSections([Section.address, Section.items, Section.payment, Section.pricing])
         
-        snapshot.appendItems([.address], toSection: .address)
+        let addressText = userProfile?.fullAddress ?? "Klik untuk atur alamat pengiriman"
+        snapshot.appendItems([RowItem.address(addressText)], toSection: Section.address)
         
         let isLoading = previewState.isLoading
         let itemRows = cartItems.map { item -> RowItem in
             let message = previewResponse?.items.first(where: { $0.variantId == item.variantId })?.message
-            return .cartItem(item, message: message, isLoading: isLoading)
+            return RowItem.cartItem(item, message: message, isLoading: isLoading)
         }
-        snapshot.appendItems(itemRows, toSection: .items)
+        snapshot.appendItems(itemRows, toSection: Section.items)
         
-        snapshot.appendItems([.voucher, .paymentMethod(selectedAccount)], toSection: .payment)
+        snapshot.appendItems([RowItem.voucher, RowItem.paymentMethod(selectedAccount)], toSection: Section.payment)
         
-        snapshot.appendItems([.pricing(previewResponse, CartManager.shared.totalAmount, isLoading: isLoading)], toSection: .pricing)
+        snapshot.appendItems([RowItem.pricing(previewResponse, CartManager.shared.totalAmount, isLoading: isLoading)], toSection: Section.pricing)
         
         dataSource.apply(snapshot, animatingDifferences: true)
     }
@@ -286,6 +292,17 @@ final class ReviewOrderViewController: UIViewController {
                 applySnapshot()
             } catch {
                 print("Failed to fetch linked accounts: \(error)")
+            }
+        }
+    }
+    
+    private func fetchProfile() {
+        Task {
+            do {
+                self.userProfile = try await UserService.shared.fetchProfile()
+                self.applySnapshot()
+            } catch {
+                print("Failed to fetch profile in Checkout: \(error)")
             }
         }
     }
@@ -349,10 +366,11 @@ final class ReviewOrderViewController: UIViewController {
         
         Task {
             do {
+                // ELITE: Use real user address data instead of hardcoded strings
                 let address: [String: String] = [
-                    "street": "Jl. Merdeka No. 12",
-                    "floor_unit": "402",
-                    "postal_code": "12345"
+                    "street": userProfile?.fullAddress ?? "Alamat tidak dikenal",
+                    "floor_unit": "N/A",
+                    "postal_code": userProfile?.postalCode ?? "00000"
                 ]
                 let response = try await CartManager.shared.placeOrder(address: address, linkedAccountId: selectedAccount?.id)
                 CartManager.shared.clear()
@@ -419,6 +437,12 @@ extension ReviewOrderViewController: UITableViewDelegate {
         guard let item = dataSource.itemIdentifier(for: indexPath) else { return }
         
         switch item {
+        case .address:
+            coordinator?.showSavedAddresses()
+        case .voucher:
+            let alert = UIAlertController(title: "Voucher", message: "Fitur voucher akan segera hadir!", preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default))
+            present(alert, animated: true)
         case .paymentMethod:
             showPaymentMethodPicker()
         default:
@@ -459,7 +483,8 @@ final class AddressCell: UITableViewCell {
     
     private func setupUI() {
         backgroundColor = .clear
-        selectionStyle = .none
+        // ELITE: Enable selection to allow the user to change their address
+        selectionStyle = .default
         contentView.addSubview(container)
         container.backgroundColor = .white
         container.roundCorners()
@@ -474,9 +499,9 @@ final class AddressCell: UITableViewCell {
         titleLabel.font = .systemFont(ofSize: 12, weight: .regular)
         titleLabel.textColor = Brand.Text.secondary
         
-        subtitleLabel.text = "Jl. Merdeka No. 12, Jakarta Pusat"
         subtitleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         subtitleLabel.textColor = Brand.Text.primary
+        subtitleLabel.numberOfLines = 2
         
         let labelStack = UIStackView(arrangedSubviews: [titleLabel, subtitleLabel])
         labelStack.axis = .vertical
@@ -504,6 +529,10 @@ final class AddressCell: UITableViewCell {
             make.centerY.equalToSuperview()
             make.size.equalTo(20)
         }
+    }
+    
+    func configure(address: String) {
+        subtitleLabel.text = address
     }
 }
 

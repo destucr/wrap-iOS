@@ -18,6 +18,7 @@
 		438D45EB2FA1CE2E001042F7 /* Hero in Frameworks */ = {isa = PBXBuildFile; productRef = 438D45EA2FA1CE2E001042F7 /* Hero */; };
 		438D46132FA292CA001042F7 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 438D46122FA292CA001042F7 /* GoogleSignIn */; };
 		438D46152FA292CA001042F7 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 438D46142FA292CA001042F7 /* GoogleSignInSwift */; };
+		43949A852FA45DC3009E94A9 /* SkeletonView in Frameworks */ = {isa = PBXBuildFile; productRef = 43949A842FA45DC3009E94A9 /* SkeletonView */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -83,6 +84,7 @@
 				43749CC82FA0AA2400E4D769 /* Kingfisher in Frameworks */,
 				4386377D2FA2E9DE0076D349 /* RxCocoa in Frameworks */,
 				438D46132FA292CA001042F7 /* GoogleSignIn in Frameworks */,
+				43949A852FA45DC3009E94A9 /* SkeletonView in Frameworks */,
 				43749CC32FA0A9D600E4D769 /* FirebaseMessaging in Frameworks */,
 				43749CBF2FA0A9D600E4D769 /* FirebaseAuth in Frameworks */,
 				43749CC12FA0A9D600E4D769 /* FirebaseCrashlytics in Frameworks */,
@@ -161,6 +163,7 @@
 				438D46142FA292CA001042F7 /* GoogleSignInSwift */,
 				4386377C2FA2E9DE0076D349 /* RxCocoa */,
 				4386377E2FA2E9DE0076D349 /* RxRelay */,
+				43949A842FA45DC3009E94A9 /* SkeletonView */,
 			);
 			productName = Wrap;
 			productReference = 43749C502FA0A84100E4D769 /* Wrap.app */;
@@ -252,6 +255,7 @@
 				438D45E92FA1CE2E001042F7 /* XCRemoteSwiftPackageReference "hero" */,
 				438D46112FA292CA001042F7 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				4386377B2FA2E9DE0076D349 /* XCRemoteSwiftPackageReference "rxswift" */,
+				43949A832FA45DC3009E94A9 /* XCRemoteSwiftPackageReference "SkeletonView" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 43749C512FA0A84100E4D769 /* Products */;
@@ -700,6 +704,14 @@
 				minimumVersion = 9.1.0;
 			};
 		};
+		43949A832FA45DC3009E94A9 /* XCRemoteSwiftPackageReference "SkeletonView" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Juanpe/SkeletonView";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.31.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -757,6 +769,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 438D46112FA292CA001042F7 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		43949A842FA45DC3009E94A9 /* SkeletonView */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 43949A832FA45DC3009E94A9 /* XCRemoteSwiftPackageReference "SkeletonView" */;
+			productName = SkeletonView;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
