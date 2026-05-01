@@ -1,8 +1,11 @@
 import UIKit
 
 class HomeLayoutProvider {
-    static func createLayout(sections: [HomeViewModel.Section], isLoading: Bool = false) -> UICollectionViewLayout {
+    static func createLayout(viewModel: HomeViewModel) -> UICollectionViewLayout {
         return UICollectionViewCompositionalLayout { (sectionIndex, layoutEnvironment) -> NSCollectionLayoutSection? in
+            let isLoading = viewModel.isLoading
+            let sections = viewModel.sections
+            
             if isLoading {
                 if sectionIndex == 0 { // Banner Skeleton
                     let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .fractionalHeight(1)))
@@ -32,7 +35,13 @@ class HomeLayoutProvider {
                 }
             }
             
-            guard sectionIndex < sections.count else { return nil }
+            // Safety: Return a basic section if index is out of bounds during transitions
+            guard sectionIndex < sections.count else {
+                let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(1)))
+                let group = NSCollectionLayoutGroup.vertical(layoutSize: NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .absolute(1)), subitems: [item])
+                return NSCollectionLayoutSection(group: group)
+            }
+            
             let section = sections[sectionIndex]
             
             switch section {

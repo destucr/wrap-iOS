@@ -104,6 +104,10 @@ final class HomeViewController: UIViewController {
         view.addSubview(searchBar)
         view.addSubview(collectionView)
         
+        // ELITE: Use a single "Live" layout that captures the viewModel state
+        let layout = HomeLayoutProvider.createLayout(viewModel: viewModel)
+        collectionView.setCollectionViewLayout(layout, animated: false)
+        
         addressBar.snp.makeConstraints { make in
             make.top.equalTo(view.safeAreaLayoutGuide).offset(4)
             make.leading.trailing.equalToSuperview()
@@ -133,18 +137,11 @@ final class HomeViewController: UIViewController {
     }
     
     private func bindViewModel() {
-        // ELITE: Synchronize layout and data updates to prevent "Invalid section definition" crashes
+        // ELITE: Now we only need to reload data. The "Live" layout updates itself dynamically.
         Publishers.CombineLatest(viewModel.$sections, viewModel.$isLoading)
             .receive(on: RunLoop.main)
-            .sink { [weak self] sections, isLoading in
-                guard let self = self else { return }
-                
-                // 1. Update layout first
-                let layout = HomeLayoutProvider.createLayout(sections: sections, isLoading: isLoading)
-                self.collectionView.setCollectionViewLayout(layout, animated: false)
-                
-                // 2. Then reload data
-                self.collectionView.reloadData()
+            .sink { [weak self] _, _ in
+                self?.collectionView.reloadData()
             }
             .store(in: &cancellables)
             
