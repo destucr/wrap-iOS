@@ -2,6 +2,7 @@ import UIKit
 import SnapKit
 import SafariServices
 import AuthenticationServices
+import Combine
 
 @MainActor
 final class ReviewOrderViewController: UIViewController {
@@ -15,6 +16,30 @@ final class ReviewOrderViewController: UIViewController {
     private var previewResponse: CheckoutPreviewResponse?
     private var previewTask: Task<Void, Never>?
     private var previewState: ViewState<CheckoutPreviewResponse> = .idle
+    private var cancellables = Set<AnyCancellable>()
+    
+    // Diffable Data Source Types
+    private enum Section: Int, CaseIterable, Hashable {
+        case address
+        case items
+        case payment
+        case pricing
+        case recommendations
+    }
+    
+    private enum RowItem: Hashable {
+        case address
+        case cartItem(CartItem, message: String?)
+        case voucher
+        case paymentMethod(LinkedAccount?)
+        case pricing(CheckoutPreviewResponse?, Double, isLoading: Bool)
+        case recommendation(Product)
+    }
+    
+    private typealias DataSource = UITableViewDiffableDataSource<Section, RowItem>
+    private typealias Snapshot = NSDiffableDataSourceSnapshot<Section, RowItem>
+    
+    private var dataSource: DataSource!
     
     private let tableView: UITableView = {
         let tv = UITableView(frame: .zero, style: .grouped)
@@ -60,6 +85,7 @@ final class ReviewOrderViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
+        configureDataSource()
         setupObservers()
         fetchRecommendations()
         fetchLinkedAccounts()
@@ -142,8 +168,6 @@ final class ReviewOrderViewController: UIViewController {
             make.edges.equalTo(tableView)
         }
         
-        tableView.dataSource = self
-        tableView.delegate = self
         tableView.register(AddressCell.self, forCellReuseIdentifier: AddressCell.identifier)
         tableView.register(ReviewItemCell.self, forCellReuseIdentifier: ReviewItemCell.identifier)
         tableView.register(VoucherCell.self, forCellReuseIdentifier: VoucherCell.identifier)
@@ -151,6 +175,57 @@ final class ReviewOrderViewController: UIViewController {
         tableView.register(PricingCell.self, forCellReuseIdentifier: PricingCell.identifier)
         
         payButton.addTarget(self, action: #selector(didTapPay), for: .touchUpInside)
+    }
+    
+    private func configureDataSource() {
+        dataSource = DataSource(tableView: tableView) { [weak self] (tableView, indexPath, item) -> UITableViewCell? in
+            guard let self = self else { return nil }
+            
+            switch item {
+            case .address:
+                return tableView.dequeueReusableCell(withIdentifier: AddressCell.identifier, for: indexPath)
+                
+            case .cartItem(let cartItem, let message):
+                let cell = tableView.dequeueReusableCell(withIdentifier: ReviewItemCell.identifier, for: indexPath) as! ReviewItemCell
+                if self.previewState == .loading {
+                    cell.startLoading()
+                } else {
+                    cell.configure(with: cartItem, message: message)
+                    cell.onQuantityChange = { [weak self] newQty in
+                        CartManager.shared.setQuantity(variantId: cartItem.variantId, quantity: newQty, name: cartItem.name, price: cartItem.price)
+                    }
+                }
+                return cell
+                
+            case .voucher:
+                return tableView.dequeueReusableCell(withIdentifier: VoucherCell.identifier, for: indexPath)
+                
+            case .paymentMethod(let account):
+                let cell = tableView.dequeueReusableCell(withIdentifier: PaymentMethodCell.identifier, for: indexPath) as! PaymentMethodCell
+                if let account = account {
+                    cell.configure(with: account)
+                } else {
+                    cell.configureDefault()
+                }
+                return cell
+                
+            case .pricing(let response, let subtotal, let isLoading):
+                let cell = tableView.dequeueReusableCell(withIdentifier: PricingCell.identifier, for: indexPath) as! PricingCell
+                if isLoading {
+                    cell.startLoading()
+                } else if let response = response {
+                    cell.configure(with: response)
+                } else {
+                    cell.configure(subtotal: subtotal)
+                }
+                return cell
+                
+            case .recommendation:
+                // Note: Recommendations could be handled here if moved to main table
+                return UITableViewCell()
+            }
+        }
+        dataSource.defaultRowAnimation = .fade
     }
     
     private func updateUIState() {
@@ -162,15 +237,35 @@ final class ReviewOrderViewController: UIViewController {
         
         if !isEmpty {
             fetchPreview()
-            tableView.reloadData()
+            applySnapshot()
         }
+    }
+    
+    private func applySnapshot() {
+        var snapshot = Snapshot()
+        snapshot.appendSections([.address, .items, .payment, .pricing])
+        
+        snapshot.appendItems([.address], toSection: .address)
+        
+        let itemRows = cartItems.map { item -> RowItem in
+            let message = previewResponse?.items.first(where: { $0.variantId == item.variantId })?.message
+            return .cartItem(item, message: message)
+        }
+        snapshot.appendItems(itemRows, toSection: .items)
+        
+        snapshot.appendItems([.voucher, .paymentMethod(selectedAccount)], toSection: .payment)
+        
+        let isLoading = (previewState == .loading)
+        snapshot.appendItems([.pricing(previewResponse, CartManager.shared.totalAmount, isLoading: isLoading)], toSection: .pricing)
+        
+        dataSource.apply(snapshot, animatingDifferences: true)
     }
     
     private func fetchRecommendations() {
         Task {
             do {
                 self.recommendations = try await CatalogService.shared.fetchProducts()
-                self.tableView.reloadData()
+                applySnapshot()
             } catch {
                 print("Recommendations failed: \(error)")
             }
@@ -187,7 +282,7 @@ final class ReviewOrderViewController: UIViewController {
                 } else {
                     self.selectedAccount = linkedAccounts.first
                 }
-                self.tableView.reloadData()
+                applySnapshot()
             } catch {
                 print("Failed to fetch linked accounts: \(error)")
             }
@@ -197,6 +292,7 @@ final class ReviewOrderViewController: UIViewController {
     private func fetchPreview() {
         previewTask?.cancel()
         previewState = .loading
+        applySnapshot()
         updateSummary()
         
         previewTask = Task {
@@ -205,7 +301,7 @@ final class ReviewOrderViewController: UIViewController {
                 guard !Task.isCancelled else { return }
                 self.previewResponse = response
                 self.previewState = .success(response)
-                self.tableView.reloadData()
+                self.applySnapshot()
                 self.updateSummary()
                 self.payButton.isEnabled = response.isValid
                 self.payButton.backgroundColor = response.isValid ? Brand.primary : .systemGray4
@@ -213,6 +309,7 @@ final class ReviewOrderViewController: UIViewController {
                 if Task.isCancelled { return }
                 print("Preview failed: \(error)")
                 self.previewState = .error(error.localizedDescription)
+                self.applySnapshot()
                 self.updateSummary()
                 self.payButton.isEnabled = false
                 self.payButton.backgroundColor = .systemGray4
@@ -298,7 +395,7 @@ final class ReviewOrderViewController: UIViewController {
             let channel = account.channelCode.replacingOccurrences(of: "ID_", with: "")
             alert.addAction(UIAlertAction(title: "\(channel) (\(account.accountDetails))", style: .default) { _ in
                 self.selectedAccount = account
-                self.tableView.reloadData()
+                self.applySnapshot()
             })
         }
         alert.addAction(UIAlertAction(title: "+ Hubungkan Akun Baru", style: .default) { _ in
@@ -307,80 +404,24 @@ final class ReviewOrderViewController: UIViewController {
         })
         alert.addAction(UIAlertAction(title: "Transfer Bank / Manual", style: .default) { _ in
             self.selectedAccount = nil
-            self.tableView.reloadData()
+            self.applySnapshot()
         })
         alert.addAction(UIAlertAction(title: "Batal", style: .cancel))
         present(alert, animated: true)
     }
 }
 
-// MARK: - UITableView Delegate & DataSource
-extension ReviewOrderViewController: UITableViewDelegate, UITableViewDataSource {
-    func numberOfSections(in tableView: UITableView) -> Int {
-        return 4
-    }
-    
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        switch section {
-        case 0: return 1
-        case 1: return cartItems.count
-        case 2: return 2
-        case 3: return 1
-        default: return 0
-        }
-    }
-    
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let isLoading = (previewState == .loading)
-        
-        switch indexPath.section {
-        case 0:
-            let cell = tableView.dequeueReusableCell(withIdentifier: AddressCell.identifier, for: indexPath) as! AddressCell
-            return cell
-        case 1:
-            let cell = tableView.dequeueReusableCell(withIdentifier: ReviewItemCell.identifier, for: indexPath) as! ReviewItemCell
-            if isLoading {
-                cell.startLoading()
-            } else {
-                let item = cartItems[indexPath.row]
-                let previewItem = previewResponse?.items.first(where: { $0.variantId == item.variantId })
-                cell.configure(with: item, message: previewItem?.message)
-                cell.onQuantityChange = { [weak self] newQty in
-                    CartManager.shared.setQuantity(variantId: item.variantId, quantity: newQty, name: item.name, price: item.price)
-                }
-            }
-            return cell
-        case 2:
-            if indexPath.row == 0 {
-                return tableView.dequeueReusableCell(withIdentifier: VoucherCell.identifier, for: indexPath)
-            } else {
-                let cell = tableView.dequeueReusableCell(withIdentifier: PaymentMethodCell.identifier, for: indexPath) as! PaymentMethodCell
-                if let account = selectedAccount {
-                    cell.configure(with: account)
-                } else {
-                    cell.configureDefault()
-                }
-                return cell
-            }
-        case 3:
-            let cell = tableView.dequeueReusableCell(withIdentifier: PricingCell.identifier, for: indexPath) as! PricingCell
-            if isLoading {
-                cell.startLoading()
-            } else if let response = previewResponse {
-                cell.configure(with: response)
-            } else {
-                cell.configure(subtotal: CartManager.shared.totalAmount)
-            }
-            return cell
-        default:
-            return UITableViewCell()
-        }
-    }
-
+// MARK: - UITableView Delegate
+extension ReviewOrderViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
-        if indexPath.section == 2 && indexPath.row == 1 {
+        guard let item = dataSource.itemIdentifier(for: indexPath) else { return }
+        
+        switch item {
+        case .paymentMethod:
             showPaymentMethodPicker()
+        default:
+            break
         }
     }
 }
@@ -716,7 +757,10 @@ final class PricingCell: UITableViewCell {
     static let identifier = "PricingCell"
     private let container = UIView()
     private let stack = UIStackView()
-    private let skeleton = SkeletonView()
+    
+    // Dynamic Shimmers
+    private let deliverySkeleton = SkeletonView()
+    private let totalSkeleton = SkeletonView()
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -738,29 +782,20 @@ final class PricingCell: UITableViewCell {
         stack.spacing = 0
         container.addSubview(stack)
         stack.snp.makeConstraints { make in make.edges.equalToSuperview().inset(8) }
-        
-        container.addSubview(skeleton)
-        skeleton.isHidden = true
-        skeleton.snp.makeConstraints { make in
-            make.edges.equalToSuperview().inset(12)
-            make.height.equalTo(120)
-        }
     }
     
     func startLoading() {
-        skeleton.isHidden = false
-        skeleton.start()
-        stack.isHidden = true
-    }
-    
-    func stopLoading() {
-        skeleton.stop()
-        skeleton.isHidden = true
-        stack.isHidden = false
+        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        stack.addArrangedSubview(createRow(label: "Ringkasan Pesanan", value: CartManager.shared.totalAmount.formattedIDR))
+        stack.addArrangedSubview(createDivider())
+        stack.addArrangedSubview(createShimmerRow(label: "Biaya Pengiriman"))
+        stack.addArrangedSubview(createDivider())
+        stack.addArrangedSubview(createRow(label: "Biaya Layanan", value: (1000.0).formattedIDR))
+        stack.addArrangedSubview(createDivider())
+        stack.addArrangedSubview(createShimmerRow(label: "Total Pembayaran", isTotal: true))
     }
     
     func configure(subtotal: Double) {
-        stopLoading()
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         stack.addArrangedSubview(createRow(label: "Ringkasan Pesanan", value: subtotal.formattedIDR))
         stack.addArrangedSubview(createDivider())
@@ -772,7 +807,6 @@ final class PricingCell: UITableViewCell {
     }
     
     func configure(with response: CheckoutPreviewResponse) {
-        stopLoading()
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         stack.addArrangedSubview(createRow(label: "Ringkasan Pesanan", value: response.subtotal.formattedIDR))
         stack.addArrangedSubview(createDivider())
@@ -806,6 +840,28 @@ final class PricingCell: UITableViewCell {
             make.trailing.equalToSuperview().offset(-12)
             make.centerY.equalTo(l)
         }
+        return view
+    }
+    
+    private func createShimmerRow(label: String, isTotal: Bool = false) -> UIView {
+        let view = UIView()
+        let l = UILabel(); l.text = label
+        l.font = isTotal ? .systemFont(ofSize: 15, weight: .semibold) : .systemFont(ofSize: 14)
+        
+        let skeleton = SkeletonView()
+        
+        view.addSubview(l); view.addSubview(skeleton)
+        l.snp.makeConstraints { make in 
+            make.leading.equalToSuperview().offset(12)
+            make.top.bottom.equalToSuperview().inset(8)
+        }
+        skeleton.snp.makeConstraints { make in 
+            make.trailing.equalToSuperview().offset(-12)
+            make.centerY.equalTo(l)
+            make.width.equalTo(60)
+            make.height.equalTo(14)
+        }
+        skeleton.start()
         return view
     }
     

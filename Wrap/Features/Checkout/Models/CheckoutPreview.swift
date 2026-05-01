@@ -1,7 +1,7 @@
 import Foundation
 
 // 1. Mark the struct as nonisolated to break the MainActor default
-nonisolated struct CheckoutPreviewItem: Sendable {
+nonisolated struct CheckoutPreviewItem: Sendable, Hashable, Equatable {
     let variantId: UUID
     let productName: String
     let variantName: String
@@ -28,7 +28,7 @@ extension CheckoutPreviewItem: nonisolated Codable {
 }
 
 // Repeat for the main Response struct
-nonisolated struct CheckoutPreviewResponse: Sendable {
+nonisolated struct CheckoutPreviewResponse: Sendable, Hashable, Equatable {
     let isValid: Bool
     let subtotal: Double
     let deliveryFee: Double
