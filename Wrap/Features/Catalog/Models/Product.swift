@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Core Models
 // Added 'nonisolated' to ensure background threads can decode these safely in Swift 6
 
-nonisolated struct Product: Codable, Sendable {
+nonisolated struct Product: Codable, Sendable, Hashable, Equatable {
     let id: UUID
     let name: String
     let slug: String
@@ -30,7 +30,7 @@ nonisolated struct Product: Codable, Sendable {
     }
 }
 
-nonisolated struct ProductVariant: Codable, Sendable {
+nonisolated struct ProductVariant: Codable, Sendable, Hashable, Equatable {
     let id: UUID
     let productId: UUID
     let sku: String
@@ -50,7 +50,7 @@ nonisolated struct ProductVariant: Codable, Sendable {
 
 // MARK: - Catalog & Home Models
 
-nonisolated struct PromoBanner: Codable, Sendable {
+nonisolated struct PromoBanner: Codable, Sendable, Hashable, Equatable {
     let id: UUID
     let imageUrl: String
     let actionUrl: String?
@@ -62,7 +62,7 @@ nonisolated struct PromoBanner: Codable, Sendable {
     }
 }
 
-nonisolated struct CatalogCategory: Codable, Sendable {
+nonisolated struct CatalogCategory: Codable, Sendable, Hashable, Equatable {
     let id: UUID
     let name: String
     let iconUrl: String?
@@ -74,13 +74,13 @@ nonisolated struct CatalogCategory: Codable, Sendable {
     }
 }
 
-nonisolated struct HomeFeedSection: Codable, Sendable {
+nonisolated struct HomeFeedSection: Codable, Sendable, Hashable, Equatable {
     let title: String
     let type: String // "standard", "flash_sale", "personalized"
     let items: [Product]
 }
 
-nonisolated struct HomeFeedData: Codable, Sendable {
+nonisolated struct HomeFeedData: Codable, Sendable, Hashable, Equatable {
     let banners: [PromoBanner]
     let categories: [CatalogCategory]
     let sections: [HomeFeedSection]

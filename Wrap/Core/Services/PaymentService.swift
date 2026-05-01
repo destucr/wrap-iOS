@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct LinkedAccount: Codable, Sendable {
+nonisolated struct LinkedAccount: Codable, Sendable, Hashable, Equatable {
     let id: UUID
     let userId: UUID
     let channelCode: String

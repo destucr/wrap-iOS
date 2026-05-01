@@ -221,7 +221,6 @@ final class ReviewOrderViewController: UIViewController {
                 return cell
                 
             case .recommendation:
-                // Note: Recommendations could be handled here if moved to main table
                 return UITableViewCell()
             }
         }
@@ -276,7 +275,7 @@ final class ReviewOrderViewController: UIViewController {
         Task {
             do {
                 let response = try await PaymentService.shared.fetchLinkedAccounts()
-                self.linkedAccounts = response.accounts
+                self.linkedAccounts = response
                 if let ovo = linkedAccounts.first(where: { $0.channelCode == "ID_OVO" }) {
                     self.selectedAccount = ovo
                 } else {
