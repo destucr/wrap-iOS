@@ -24,9 +24,38 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window = UIWindow(windowScene: windowScene)
         
         coordinator = MainCoordinator(navigationController: navController, window: window)
-        coordinator?.start()
         
+        window?.rootViewController = UIViewController() // Splash placeholder
         window?.makeKeyAndVisible()
+        
+        Task {
+            let isValid = await AuthManager.shared.validateSession()
+            
+            if isValid {
+                coordinator?.start()
+            } else {
+                // If not valid but we had a token, it means we were kicked out
+                if AuthManager.shared.hasValidToken() {
+                    AuthManager.shared.logout()
+                    CartManager.shared.clear()
+                    
+                    coordinator?.showLogin()
+                    
+                    // ELITE: Inform the user why they are back at Login
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                        let alert = UIAlertController(
+                            title: "Sesi Berakhir",
+                            message: "Akun Anda telah masuk di perangkat lain. Silakan login kembali untuk melanjutkan.",
+                            preferredStyle: .alert
+                        )
+                        alert.addAction(UIAlertAction(title: "OK", style: .default))
+                        self?.window?.rootViewController?.present(alert, animated: true)
+                    }
+                } else {
+                    coordinator?.showLogin()
+                }
+            }
+        }
         
         // Handle Cold Start from URL
         if let urlContext = connectionOptions.urlContexts.first {

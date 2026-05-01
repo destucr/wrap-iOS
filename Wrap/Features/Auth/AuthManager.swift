@@ -122,4 +122,27 @@ class AuthManager {
         setRefreshToken("")
         UserDefaults.standard.removeObject(forKey: userRoleKey)
     }
+    
+    /// Proactively checks if the current session is still valid on this device
+    func validateSession() async -> Bool {
+        guard hasValidToken() else { return false }
+        
+        do {
+            // Lightweight call to check status
+            let _: [String: String] = try await NetworkManager.shared.request(endpoint: "/auth/status")
+            return true
+        } catch let error as NetworkError {
+            if case .deviceMismatch = error {
+                print("Proactive Check: Device Mismatch detected")
+                return false
+            }
+            if case .unauthorized = error {
+                return false
+            }
+            // For other network errors (offline), assume true to let cached UI show
+            return true
+        } catch {
+            return true
+        }
+    }
 }
