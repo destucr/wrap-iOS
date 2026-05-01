@@ -1,9 +1,12 @@
 import UIKit
 import SnapKit
+import Combine
 
 final class ProfileViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
+    private let viewModel = ProfileViewModel()
+    private var cancellables = Set<AnyCancellable>()
     private var userData: UserData?
     
     private enum Section: Int, CaseIterable {
@@ -38,14 +41,14 @@ final class ProfileViewController: UIViewController {
     
     private let nameLabel: UILabel = {
         let label = UILabel()
-        label.text = "Loading..."
+        label.text = "---"
         label.font = Brand.Typography.header(size: 24)
         return label
     }()
     
     private let addressLabel: UILabel = {
         let label = UILabel()
-        label.text = "Fetching address..."
+        label.text = "---"
         label.font = Brand.Typography.body(size: 14)
         label.textColor = .secondaryLabel
         label.numberOfLines = 1
@@ -62,7 +65,41 @@ final class ProfileViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        fetchProfile()
+        bindViewModel()
+        viewModel.fetchProfile()
+    }
+    
+    private func bindViewModel() {
+        viewModel.$state
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                self?.updateUI(with: state)
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func updateUI(with state: ViewState<UserData>) {
+        switch state {
+        case .idle:
+            nameLabel.text = "---"
+            addressLabel.text = "---"
+        case .loading:
+            nameLabel.text = "Memuat..."
+            addressLabel.text = "Mengambil data..."
+        case .success(let user):
+            self.userData = user
+            nameLabel.text = user.fullName
+            addressLabel.text = user.email
+            
+            if biometricSwitch.isOn != user.biometricsEnabled {
+                biometricSwitch.setOn(user.biometricsEnabled, animated: true)
+                AuthManager.shared.isBiometricsEnabled = user.biometricsEnabled
+            }
+            tableView.reloadData()
+        case .error(let message):
+            nameLabel.text = "Gagal"
+            addressLabel.text = message
+        }
     }
     
     private func setupUI() {
@@ -100,25 +137,6 @@ final class ProfileViewController: UIViewController {
         }
         
         tableView.tableHeaderView = headerView
-    }
-    
-    private func fetchProfile() {
-        Task {
-            do {
-                let user = try await UserService.shared.fetchProfile()
-                self.userData = user
-                nameLabel.text = user.fullName
-                addressLabel.text = user.email
-                
-                if biometricSwitch.isOn != user.biometricsEnabled {
-                    biometricSwitch.setOn(user.biometricsEnabled, animated: true)
-                    AuthManager.shared.isBiometricsEnabled = user.biometricsEnabled
-                }
-                tableView.reloadData()
-            } catch {
-                print("Failed to fetch profile: \(error)")
-            }
-        }
     }
     
     @objc private func handleBiometricToggle() {

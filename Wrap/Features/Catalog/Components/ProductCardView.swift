@@ -73,6 +73,17 @@ final class ProductCardView: UICollectionViewCell {
         fatalError("init(coder:) has not been implemented")
     }
     
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        imageView.kf.cancelDownloadTask()
+        imageView.image = nil
+        nameLabel.text = nil
+        priceLabel.text = nil
+        unitLabel.text = nil
+        scarcityLabel.isHidden = true
+        stepper.setValue(0)
+    }
+    
     private func setupUI() {
         contentView.backgroundColor = .white
         contentView.layer.cornerRadius = 16

@@ -14,6 +14,7 @@ final class ReviewOrderViewController: UIViewController {
     private var linkedAccounts: [LinkedAccount] = []
     private var previewResponse: CheckoutPreviewResponse?
     private var previewTask: Task<Void, Never>?
+    private var previewState: ViewState<CheckoutPreviewResponse> = .idle
     
     private let tableView: UITableView = {
         let tv = UITableView(frame: .zero, style: .grouped)
@@ -247,11 +248,15 @@ final class ReviewOrderViewController: UIViewController {
 
     private func fetchPreview() {
         previewTask?.cancel()
+        previewState = .loading
+        updateSummary()
+        
         previewTask = Task {
             do {
                 let response = try await CartManager.shared.previewCheckout()
                 guard !Task.isCancelled else { return }
                 self.previewResponse = response
+                self.previewState = .success(response)
                 self.tableView.reloadData()
                 self.updateSummary()
                 self.payButton.isEnabled = response.isValid
@@ -259,21 +264,27 @@ final class ReviewOrderViewController: UIViewController {
             } catch {
                 if Task.isCancelled { return }
                 print("Preview failed: \(error)")
+                self.previewState = .error(error.localizedDescription)
+                self.updateSummary()
                 self.payButton.isEnabled = false
                 self.payButton.backgroundColor = .systemGray4
-                // Optionally show a small hint or toast that preview failed
             }
         }
     }
     
     private func updateSummary() {
-        let total: Double
-        if let response = previewResponse {
-            total = response.total
-        } else {
-            total = CartManager.shared.totalAmount + 6000.0 // Local fallback: 5k delivery + 1k service
+        switch previewState {
+        case .idle:
+            finalAmountLabel.text = "Rp--"
+        case .loading:
+            finalAmountLabel.text = "Memuat..."
+        case .success(let response):
+            finalAmountLabel.text = response.total.formattedIDR
+        case .error:
+            // Fallback to local sum if preview fails
+            let total = CartManager.shared.totalAmount + 6000.0
+            finalAmountLabel.text = total.formattedIDR
         }
-        finalAmountLabel.text = total.formattedIDR
     }
     
     @objc private func handleMulaiBelanja() {
