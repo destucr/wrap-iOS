@@ -1,6 +1,7 @@
 import UIKit
 import SnapKit
 import Combine
+import SkeletonView
 
 final class ProfileViewController: UIViewController {
     
@@ -43,6 +44,8 @@ final class ProfileViewController: UIViewController {
         let label = UILabel()
         label.text = "---"
         label.font = Brand.Typography.header(size: 24)
+        label.isSkeletonable = true
+        label.linesCornerRadius = 4
         return label
     }()
     
@@ -52,6 +55,8 @@ final class ProfileViewController: UIViewController {
         label.font = Brand.Typography.body(size: 14)
         label.textColor = .secondaryLabel
         label.numberOfLines = 1
+        label.isSkeletonable = true
+        label.linesCornerRadius = 4
         return label
     }()
     
@@ -81,12 +86,14 @@ final class ProfileViewController: UIViewController {
     private func updateUI(with state: ViewState<UserData>) {
         switch state {
         case .idle:
-            nameLabel.text = "---"
-            addressLabel.text = "---"
+            headerView.hideSkeleton()
+            tableView.hideSkeleton()
         case .loading:
-            nameLabel.text = "Memuat..."
-            addressLabel.text = "Mengambil data..."
+            headerView.showAnimatedGradientSkeleton()
+            tableView.showAnimatedGradientSkeleton()
         case .success(let user):
+            headerView.hideSkeleton()
+            tableView.hideSkeleton()
             self.userData = user
             nameLabel.text = user.fullName
             addressLabel.text = user.email
@@ -97,6 +104,8 @@ final class ProfileViewController: UIViewController {
             }
             tableView.reloadData()
         case .error(let message):
+            headerView.hideSkeleton()
+            tableView.hideSkeleton()
             nameLabel.text = "Gagal"
             addressLabel.text = message
         }
@@ -105,8 +114,10 @@ final class ProfileViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = Brand.secondary
         title = "Profile"
+        view.isSkeletonable = true
         
         view.addSubview(tableView)
+        tableView.isSkeletonable = true
         tableView.snp.makeConstraints { make in
             make.top.leading.trailing.equalToSuperview()
             make.bottom.equalTo(view.safeAreaLayoutGuide)
@@ -122,6 +133,7 @@ final class ProfileViewController: UIViewController {
     }
     
     private func setupHeader() {
+        headerView.isSkeletonable = true
         headerView.addSubview(nameLabel)
         headerView.addSubview(addressLabel)
         
@@ -167,8 +179,12 @@ final class ProfileViewController: UIViewController {
     }
 }
 
-extension ProfileViewController: UITableViewDataSource, UITableViewDelegate {
+extension ProfileViewController: UITableViewDataSource, UITableViewDelegate, SkeletonTableViewDataSource {
     
+    func collectionSkeletonView(_ skeletonView: UITableView, cellIdentifierForRowAt indexPath: IndexPath) -> ReusableCellIdentifier {
+        return "DefaultCell"
+    }
+
     func numberOfSections(in tableView: UITableView) -> Int {
         return Section.allCases.count
     }

@@ -1,12 +1,14 @@
 import UIKit
 import SnapKit
 import Hero
+import SkeletonView
 
 class SearchViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
     private var results: [Product] = []
     private var searchTask: Task<Void, Never>?
+    private var isLoading = false
     
     private let searchBar: UISearchBar = {
         let sb = UISearchBar()
@@ -19,6 +21,7 @@ class SearchViewController: UIViewController {
         let tv = UITableView()
         tv.separatorStyle = .none
         tv.backgroundColor = .secondarySystemBackground
+        tv.isSkeletonable = true
         return tv
     }()
     
@@ -30,8 +33,6 @@ class SearchViewController: UIViewController {
         label.isHidden = false
         return label
     }()
-    
-    private let activityIndicator = UIActivityIndicatorView(style: .medium)
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -62,7 +63,6 @@ class SearchViewController: UIViewController {
         
         view.addSubview(tableView)
         view.addSubview(emptyStateLabel)
-        view.addSubview(activityIndicator)
         
         tableView.delegate = self
         tableView.dataSource = self
@@ -75,10 +75,6 @@ class SearchViewController: UIViewController {
         emptyStateLabel.snp.makeConstraints { make in
             make.center.equalToSuperview()
         }
-        
-        activityIndicator.snp.makeConstraints { make in
-            make.center.equalToSuperview()
-        }
     }
     
     private func performSearch(query: String) {
@@ -86,6 +82,9 @@ class SearchViewController: UIViewController {
         
         if query.isEmpty {
             results = []
+            isLoading = false
+            tableView.stopSkeletonAnimation()
+            tableView.hideSkeleton()
             tableView.reloadData()
             emptyStateLabel.isHidden = false
             emptyStateLabel.text = "Mulai cari produk favoritmu"
@@ -93,7 +92,8 @@ class SearchViewController: UIViewController {
         }
         
         emptyStateLabel.isHidden = true
-        activityIndicator.startAnimating()
+        isLoading = true
+        tableView.showAnimatedGradientSkeleton()
         
         searchTask = Task {
             do {
@@ -102,8 +102,10 @@ class SearchViewController: UIViewController {
                 guard !Task.isCancelled else { return }
                 
                 self.results = fetchedResults
+                self.isLoading = false
+                self.tableView.stopSkeletonAnimation()
+                self.tableView.hideSkeleton()
                 self.tableView.reloadData()
-                self.activityIndicator.stopAnimating()
                 
                 if results.isEmpty {
                     emptyStateLabel.isHidden = false
@@ -111,7 +113,9 @@ class SearchViewController: UIViewController {
                 }
             } catch {
                 guard !Task.isCancelled else { return }
-                self.activityIndicator.stopAnimating()
+                self.isLoading = false
+                self.tableView.stopSkeletonAnimation()
+                self.tableView.hideSkeleton()
                 print("Search error: \(error)")
             }
         }
@@ -128,7 +132,11 @@ extension SearchViewController: UISearchBarDelegate {
     }
 }
 
-extension SearchViewController: UITableViewDelegate, UITableViewDataSource {
+extension SearchViewController: UITableViewDelegate, UITableViewDataSource, SkeletonTableViewDataSource {
+    func collectionSkeletonView(_ skeletonView: UITableView, cellIdentifierForRowAt indexPath: IndexPath) -> ReusableCellIdentifier {
+        return ProductCell.identifier
+    }
+
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return results.count
     }

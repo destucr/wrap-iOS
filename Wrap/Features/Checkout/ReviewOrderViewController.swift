@@ -3,6 +3,7 @@ import SnapKit
 import SafariServices
 import AuthenticationServices
 import Combine
+import SkeletonView
 
 @MainActor
 final class ReviewOrderViewController: UIViewController {
@@ -17,10 +18,10 @@ final class ReviewOrderViewController: UIViewController {
     private var previewTask: Task<Void, Never>?
     private var previewState: ViewState<CheckoutPreviewResponse> = .idle
     private var userProfile: UserData?
+    private var selectedSavedAddress: SavedAddress?
     private var cancellables = Set<AnyCancellable>()
     
     // Diffable Data Source Types
-    // Swift 6: Mark as nonisolated and Sendable for use in DataSource
     nonisolated private enum Section: Int, CaseIterable, Hashable, Sendable {
         case address
         case items
@@ -102,20 +103,11 @@ final class ReviewOrderViewController: UIViewController {
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = Brand.secondary
         appearance.shadowColor = .clear
-        appearance.largeTitleTextAttributes = [
-            .font: UIFont.systemFont(ofSize: 34, weight: .bold),
-            .foregroundColor: Brand.Text.primary
-        ]
         navigationController?.navigationBar.standardAppearance = appearance
         navigationController?.navigationBar.scrollEdgeAppearance = appearance
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationItem.largeTitleDisplayMode = .always
     }
-
-    override func viewWillDisappear(_ animated: Bool) {
-         super.viewWillDisappear(animated)
-         navigationController?.setNavigationBarHidden(false, animated: animated)
-     }
 
     private func setupObservers() {
         NotificationCenter.default.addObserver(self, selector: #selector(cartDidUpdate), name: .cartUpdated, object: nil)
@@ -171,6 +163,7 @@ final class ReviewOrderViewController: UIViewController {
             make.edges.equalTo(tableView)
         }
         
+        tableView.delegate = self
         tableView.register(AddressCell.self, forCellReuseIdentifier: AddressCell.identifier)
         tableView.register(ReviewItemCell.self, forCellReuseIdentifier: ReviewItemCell.identifier)
         tableView.register(VoucherCell.self, forCellReuseIdentifier: VoucherCell.identifier)
@@ -229,7 +222,7 @@ final class ReviewOrderViewController: UIViewController {
                 return UITableViewCell()
             }
         }
-        dataSource.defaultRowAnimation = UITableView.RowAnimation.fade
+        dataSource.defaultRowAnimation = .fade
     }
     
     private func updateUIState() {
@@ -249,21 +242,19 @@ final class ReviewOrderViewController: UIViewController {
     
     private func applySnapshot() {
         var snapshot = Snapshot()
-        snapshot.appendSections([Section.address, Section.items, Section.payment, Section.pricing])
+        snapshot.appendSections([.address, .items, .payment, .pricing])
         
-        let addressText = userProfile?.fullAddress ?? "Klik untuk atur alamat pengiriman"
-        snapshot.appendItems([RowItem.address(addressText)], toSection: Section.address)
+        let addressText = selectedSavedAddress?.fullAddress ?? userProfile?.fullAddress ?? "Klik untuk atur alamat pengiriman"
+        snapshot.appendItems([.address(addressText)], toSection: .address)
         
         let isLoading = previewState.isLoading
         let itemRows = cartItems.map { item -> RowItem in
             let message = previewResponse?.items.first(where: { $0.variantId == item.variantId })?.message
-            return RowItem.cartItem(item, message: message, isLoading: isLoading)
+            return .cartItem(item, message: message, isLoading: isLoading)
         }
-        snapshot.appendItems(itemRows, toSection: Section.items)
-        
-        snapshot.appendItems([RowItem.voucher, RowItem.paymentMethod(selectedAccount)], toSection: Section.payment)
-        
-        snapshot.appendItems([RowItem.pricing(previewResponse, CartManager.shared.totalAmount, isLoading: isLoading)], toSection: Section.pricing)
+        snapshot.appendItems(itemRows, toSection: .items)
+        snapshot.appendItems([.voucher, .paymentMethod(selectedAccount)], toSection: .payment)
+        snapshot.appendItems([.pricing(previewResponse, CartManager.shared.totalAmount, isLoading: isLoading)], toSection: .pricing)
         
         dataSource.apply(snapshot, animatingDifferences: true)
     }
@@ -349,10 +340,6 @@ final class ReviewOrderViewController: UIViewController {
         }
     }
     
-    @objc private func handleMulaiBelanja() {
-        tabBarController?.selectedIndex = 0
-    }
-    
     private func resetPayButton() {
         payButton.isEnabled = true
         payButton.alpha = 1.0
@@ -366,11 +353,10 @@ final class ReviewOrderViewController: UIViewController {
         
         Task {
             do {
-                // ELITE: Use real user address data instead of hardcoded strings
                 let address: [String: String] = [
-                    "street": userProfile?.fullAddress ?? "Alamat tidak dikenal",
+                    "street": selectedSavedAddress?.fullAddress ?? userProfile?.fullAddress ?? "Alamat tidak dikenal",
                     "floor_unit": "N/A",
-                    "postal_code": userProfile?.postalCode ?? "00000"
+                    "postal_code": selectedSavedAddress?.postalCode ?? userProfile?.postalCode ?? "00000"
                 ]
                 let response = try await CartManager.shared.placeOrder(address: address, linkedAccountId: selectedAccount?.id)
                 CartManager.shared.clear()
@@ -385,10 +371,6 @@ final class ReviewOrderViewController: UIViewController {
                             self?.coordinator?.showOrderSuccess(orderId: orderId, paymentUrl: "DIRECT_DEBIT_PAID")
                         } else {
                             self?.resetPayButton()
-                            if error == nil && callbackURL == nil {
-                            } else if let url = callbackURL {
-                                self?.coordinator?.showOrderHistory()
-                            }
                         }
                     }
                     session.presentationContextProvider = self
@@ -430,7 +412,6 @@ final class ReviewOrderViewController: UIViewController {
     }
 }
 
-// MARK: - UITableView Delegate
 extension ReviewOrderViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
@@ -438,7 +419,14 @@ extension ReviewOrderViewController: UITableViewDelegate {
         
         switch item {
         case .address:
-            coordinator?.showSavedAddresses()
+            let vc = SavedAddressesViewController()
+            vc.coordinator = coordinator
+            vc.onSelectAddress = { [weak self] address in
+                self?.selectedSavedAddress = address
+                self?.applySnapshot()
+                self?.navigationController?.popViewController(animated: true)
+            }
+            navigationController?.pushViewController(vc, animated: true)
         case .voucher:
             let alert = UIAlertController(title: "Voucher", message: "Fitur voucher akan segera hadir!", preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "OK", style: .default))
@@ -451,21 +439,19 @@ extension ReviewOrderViewController: UITableViewDelegate {
     }
 }
 
-// MARK: - ASWebAuthenticationPresentationContextProviding
 extension ReviewOrderViewController: ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         return view.window ?? UIWindow()
     }
 }
 
-// MARK: - SFSafariViewControllerDelegate
 extension ReviewOrderViewController: SFSafariViewControllerDelegate {
     func safariViewControllerDidFinish(_ controller: SFSafariViewController) {
         coordinator?.showOrderHistory()
     }
 }
 
-// MARK: - Redesigned Cells
+// MARK: - Supporting Cells
 
 final class AddressCell: UITableViewCell {
     static let identifier = "AddressCell"
@@ -483,7 +469,6 @@ final class AddressCell: UITableViewCell {
     
     private func setupUI() {
         backgroundColor = .clear
-        // ELITE: Enable selection to allow the user to change their address
         selectionStyle = .default
         contentView.addSubview(container)
         container.backgroundColor = .white
@@ -499,7 +484,7 @@ final class AddressCell: UITableViewCell {
         titleLabel.font = .systemFont(ofSize: 12, weight: .regular)
         titleLabel.textColor = Brand.Text.secondary
         
-        subtitleLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+        subtitleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
         subtitleLabel.textColor = Brand.Text.primary
         subtitleLabel.numberOfLines = 2
         
@@ -536,16 +521,12 @@ final class AddressCell: UITableViewCell {
     }
 }
 
-import UIKit
-import SnapKit
-import SafariServices
-import AuthenticationServices
-import Combine
-import SkeletonView
-
-@MainActor
-final class ReviewOrderViewController: UIViewController {
-...
+final class ReviewItemCell: UITableViewCell {
+    static let identifier = "ReviewItemCell"
+    private let container = UIView()
+    private let thumbnail = UIImageView()
+    private let nameLabel = UILabel()
+    private let priceLabel = UILabel()
     private let stepper = RedesignedStepper()
     
     var onQuantityChange: ((Int) -> Void)?
@@ -577,7 +558,7 @@ final class ReviewOrderViewController: UIViewController {
         thumbnail.isSkeletonable = true
         thumbnail.skeletonCornerRadius = 8
         
-        nameLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+        nameLabel.font = .systemFont(ofSize: 13, weight: .semibold)
         nameLabel.numberOfLines = 2
         nameLabel.isSkeletonable = true
         nameLabel.linesCornerRadius = 4
@@ -632,7 +613,97 @@ final class ReviewOrderViewController: UIViewController {
         priceLabel.text = item.price.formattedIDR
         stepper.value = item.quantity
     }
-...
+}
+
+final class VoucherCell: UITableViewCell {
+    static let identifier = "VoucherCell"
+    private let container = UIView()
+    private let icon = UIImageView(image: UIImage(systemName: "tag.fill"))
+    private let title = UILabel()
+    private let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
+    
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        setupUI()
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    
+    private func setupUI() {
+        backgroundColor = .clear
+        selectionStyle = .default
+        contentView.addSubview(container)
+        container.backgroundColor = .white
+        container.roundCorners()
+        container.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(UIEdgeInsets(top: 8, left: 16, bottom: 4, right: 16))
+            make.height.equalTo(52)
+        }
+        
+        icon.tintColor = Brand.primary
+        title.text = "Tambah Voucher"
+        title.textColor = Brand.primary
+        title.font = .systemFont(ofSize: 15, weight: .semibold)
+        chevron.tintColor = .systemGray3
+        
+        [icon, title, chevron].forEach { container.addSubview($0) }
+        icon.snp.makeConstraints { make in make.leading.equalToSuperview().offset(16); make.centerY.equalToSuperview(); make.size.equalTo(20) }
+        title.snp.makeConstraints { make in make.leading.equalTo(icon.snp.trailing).offset(12); make.centerY.equalToSuperview() }
+        chevron.snp.makeConstraints { make in make.trailing.equalToSuperview().offset(-16); make.centerY.equalToSuperview(); make.size.equalTo(14) }
+    }
+}
+
+final class PaymentMethodCell: UITableViewCell {
+    static let identifier = "PaymentMethodCell"
+    private let container = UIView()
+    private let icon = UIImageView(image: UIImage(systemName: "creditcard.fill"))
+    private let title = UILabel()
+    private let methodLabel = UILabel()
+    private let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
+    
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        setupUI()
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    
+    private func setupUI() {
+        backgroundColor = .clear
+        selectionStyle = .default
+        contentView.addSubview(container)
+        container.backgroundColor = .white
+        container.roundCorners()
+        container.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(UIEdgeInsets(top: 4, left: 16, bottom: 8, right: 16))
+            make.height.equalTo(52)
+        }
+        
+        icon.tintColor = Brand.Text.secondary
+        title.text = "Metode Pembayaran"
+        title.font = .systemFont(ofSize: 15)
+        methodLabel.text = "Transfer Bank"
+        methodLabel.font = .systemFont(ofSize: 14)
+        methodLabel.textColor = Brand.Text.secondary
+        chevron.tintColor = .systemGray3
+        
+        [icon, title, methodLabel, chevron].forEach { container.addSubview($0) }
+        icon.snp.makeConstraints { make in make.leading.equalToSuperview().offset(16); make.centerY.equalToSuperview(); make.size.equalTo(20) }
+        title.snp.makeConstraints { make in make.leading.equalTo(icon.snp.trailing).offset(12); make.centerY.equalToSuperview() }
+        methodLabel.snp.makeConstraints { make in make.trailing.equalTo(chevron.snp.leading).offset(-8); make.centerY.equalToSuperview() }
+        chevron.snp.makeConstraints { make in make.trailing.equalToSuperview().offset(-16); make.centerY.equalToSuperview(); make.size.equalTo(14) }
+    }
+    
+    func configure(with account: LinkedAccount) {
+        title.text = "Metode Pembayaran"
+        let channel = account.channelCode.replacingOccurrences(of: "ID_", with: "")
+        methodLabel.text = "\(channel) - \(account.accountDetails)"
+    }
+    
+    func configureDefault() {
+        title.text = "Metode Pembayaran"
+        methodLabel.text = "Transfer Bank"
+    }
+}
+
 final class PricingCell: UITableViewCell {
     static let identifier = "PricingCell"
     private let container = UIView()
@@ -753,4 +824,39 @@ final class PricingCell: UITableViewCell {
         v.snp.makeConstraints { make in make.height.equalTo(1) }
         return v
     }
+}
+
+final class RedesignedStepper: UIView {
+    var value: Int = 0 { didSet { valueLabel.text = "\(value)" } }
+    var onValueChange: ((Int) -> Void)?
+    
+    private let minusBtn = UIButton(type: .system)
+    private let plusBtn = UIButton(type: .system)
+    private let valueLabel = UILabel()
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = Brand.primary.withAlphaComponent(0.1)
+        layer.cornerRadius = 18
+        
+        minusBtn.setImage(UIImage(systemName: "minus"), for: .normal)
+        plusBtn.setImage(UIImage(systemName: "plus"), for: .normal)
+        [minusBtn, plusBtn].forEach { $0.tintColor = Brand.primary }
+        
+        valueLabel.font = .systemFont(ofSize: 15, weight: .bold)
+        valueLabel.textAlignment = .center
+        
+        let stack = UIStackView(arrangedSubviews: [minusBtn, valueLabel, plusBtn])
+        stack.axis = .horizontal
+        stack.distribution = .fillEqually
+        addSubview(stack)
+        stack.snp.makeConstraints { make in make.edges.equalToSuperview() }
+        
+        minusBtn.addTarget(self, action: #selector(didTapMinus), for: .touchUpInside)
+        plusBtn.addTarget(self, action: #selector(didTapPlus), for: .touchUpInside)
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    
+    @objc private func didTapMinus() { if value > 0 { value -= 1; onValueChange?(value) } }
+    @objc private func didTapPlus() { value += 1; onValueChange?(value) }
 }

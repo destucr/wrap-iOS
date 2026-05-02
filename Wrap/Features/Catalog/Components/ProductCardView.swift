@@ -22,7 +22,7 @@ final class ProductCardView: UICollectionViewCell {
 
     let nameLabel: UILabel = {
         let label = UILabel()
-        label.font = Brand.Typography.productName()
+        label.font = Brand.Typography.body(size: 13).withWeight(.semibold)
         label.textColor = Brand.Text.primary
         label.numberOfLines = 2
         label.lineBreakMode = .byTruncatingTail
@@ -39,6 +39,25 @@ final class ProductCardView: UICollectionViewCell {
         label.setContentCompressionResistancePriority(.required, for: .horizontal)
         label.isSkeletonable = true
         label.linesCornerRadius = 4
+        return label
+    }()
+
+    private let originalPriceLabel: UILabel = {
+        let label = UILabel()
+        label.font = Brand.Typography.caption().withWeight(.regular)
+        label.textColor = .systemGray
+        label.isHidden = true
+        return label
+    }()
+    
+    private let discountBadge: UILabel = {
+        let label = UILabel()
+        label.font = Brand.Typography.body(size: 10).withWeight(.bold)
+        label.textColor = .white
+        label.backgroundColor = .systemRed
+        label.textAlignment = .center
+        label.roundCorners(radius: 4)
+        label.isHidden = true
         return label
     }()
     
@@ -63,10 +82,18 @@ final class ProductCardView: UICollectionViewCell {
     
     private let priceStack: UIStackView = {
         let stack = UIStackView()
+        stack.axis = .vertical
+        stack.spacing = 2
+        stack.alignment = .leading
+        stack.isSkeletonable = true
+        return stack
+    }()
+
+    private let amountStack: UIStackView = {
+        let stack = UIStackView()
         stack.axis = .horizontal
         stack.spacing = 2
         stack.alignment = .center
-        stack.isSkeletonable = true
         return stack
     }()
     
@@ -108,8 +135,13 @@ final class ProductCardView: UICollectionViewCell {
         contentView.addSubview(imageView)
         contentView.addSubview(nameLabel)
         contentView.addSubview(priceStack)
-        priceStack.addArrangedSubview(priceLabel)
-        priceStack.addArrangedSubview(unitLabel)
+        
+        priceStack.addArrangedSubview(originalPriceLabel)
+        priceStack.addArrangedSubview(amountStack)
+        amountStack.addArrangedSubview(priceLabel)
+        amountStack.addArrangedSubview(unitLabel)
+        
+        contentView.addSubview(discountBadge)
         contentView.addSubview(scarcityLabel)
         contentView.addSubview(stepper)
         
@@ -118,6 +150,13 @@ final class ProductCardView: UICollectionViewCell {
         imageView.snp.makeConstraints { make in
             make.top.leading.trailing.equalToSuperview().inset(8)
             make.height.equalTo(imageView.snp.width)
+        }
+
+        discountBadge.snp.makeConstraints { make in
+            make.top.equalTo(imageView.snp.top).offset(8)
+            make.trailing.equalTo(imageView.snp.trailing).offset(-8)
+            make.height.equalTo(18)
+            make.width.greaterThanOrEqualTo(45)
         }
         
         scarcityLabel.snp.makeConstraints { make in
@@ -160,7 +199,30 @@ final class ProductCardView: UICollectionViewCell {
         stopLoading()
         self.product = product
         nameLabel.text = product.name
-        priceLabel.text = product.basePrice.formattedIDR
+        
+        let firstVariant = product.variants?.first
+        let currentPrice = firstVariant?.priceOverride ?? product.basePrice
+        priceLabel.text = currentPrice.formattedIDR
+        
+        if let override = firstVariant?.priceOverride, override < product.basePrice {
+            originalPriceLabel.isHidden = false
+            let attributeString: NSMutableAttributedString =  NSMutableAttributedString(string: product.basePrice.formattedIDR)
+            attributeString.addAttribute(NSAttributedString.Key.strikethroughStyle, value: 2, range: NSMakeRange(0, attributeString.length))
+            originalPriceLabel.attributedText = attributeString
+            
+            discountBadge.isHidden = false
+            let discountPercent = Int((1.0 - (override / product.basePrice)) * 100)
+            discountBadge.text = "\(discountPercent)% OFF"
+            discountBadge.backgroundColor = .systemRed
+        } else if product.tags?.contains("Flash Sale") == true {
+            originalPriceLabel.isHidden = true
+            discountBadge.isHidden = false
+            discountBadge.text = "FLASH ⚡️"
+            discountBadge.backgroundColor = Brand.accent
+        } else {
+            originalPriceLabel.isHidden = true
+            discountBadge.isHidden = true
+        }
         
         imageView.hero.id = "image_\(product.id.uuidString)"
         nameLabel.hero.id = "title_\(product.id.uuidString)"

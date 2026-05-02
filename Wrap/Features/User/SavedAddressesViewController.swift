@@ -5,6 +5,7 @@ final class SavedAddressesViewController: UIViewController {
     
     weak var coordinator: MainCoordinator?
     private var addresses: [SavedAddress] = []
+    var onSelectAddress: ((SavedAddress) -> Void)?
     
     private let tableView: UITableView = {
         let tv = UITableView(frame: .zero, style: .grouped)
@@ -36,10 +37,8 @@ final class SavedAddressesViewController: UIViewController {
     private func fetchAddresses() {
         Task {
             do {
-                // You'll need to define SavedAddress in a shared model or iOS model file
-                // let response: [SavedAddress] = try await NetworkManager.shared.request(endpoint: "/user/addresses")
-                // self.addresses = response
-                // tableView.reloadData()
+                self.addresses = try await UserService.shared.fetchSavedAddresses()
+                tableView.reloadData()
             } catch {
                 print("Failed to fetch addresses: \(error)")
             }
@@ -57,8 +56,19 @@ extension SavedAddressesViewController: UITableViewDataSource, UITableViewDelega
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "AddressCell", for: indexPath)
-        cell.textLabel?.text = addresses[indexPath.row].label
+        let cell = UITableViewCell(style: .subtitle, reuseIdentifier: "AddressCell")
+        let addr = addresses[indexPath.row]
+        cell.textLabel?.text = addr.label
+        cell.textLabel?.font = .systemFont(ofSize: 15, weight: .bold)
+        cell.detailTextLabel?.text = addr.fullAddress
+        cell.detailTextLabel?.textColor = .secondaryLabel
+        cell.detailTextLabel?.numberOfLines = 2
         return cell
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        tableView.deselectRow(at: indexPath, animated: true)
+        let addr = addresses[indexPath.row]
+        onSelectAddress?(addr)
     }
 }
