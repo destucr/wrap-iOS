@@ -1,72 +1,63 @@
 # Wrap iOS Technical Documentation
-Version: 2.0 (Updated for RxSwift & RBAC)
+Version: 3.0 (Updated for MVVM, Coordinator & SkeletonView)
 Target: iOS 17.0+
 
-## 🏛 Architecture: Reactive Feature-Based MVC + Coordinator
+## 🏛 Architecture: Reactive MVVM + Coordinator
 
-We use a modular structure where code is grouped by **Feature** and powered by **RxSwift** for reactive state management. This ensures data consistency across the app without the fragility of manual notifications.
+We use a modular, feature-based architecture powered by **RxSwift/Combine** for reactive state management and the **Coordinator Pattern** for navigation decoupling.
 
 ### Folder Structure
-- `Core/`: Singleton managers and shared infrastructure.
-  - `Networking/`: `NetworkManager` (Rx-enabled) for API calls.
-  - `Navigation/`: `Coordinator` logic and `MainTabBarController` (Role-aware).
-  - `Cart/`: `CartManager` (Reactive via `BehaviorRelay`).
-  - `Theme/`: `Brand` definition and typography.
-  - `Security/`: `BiometricManager` and `KeychainHelper` (Atomic updates).
-- `Features/`:
-  - `Auth/`: Login & Registration. Models: `AuthResponse`, `UserData`.
-  - `Catalog/`: Browsing and Product Details.
-  - `Checkout/`: Unified Review Order, Previews, and Payment.
-  - `OrderHistory/`: Order list and tracking.
+- `Core/`: Shared infrastructure and singletons.
+  - `Networking/`: `NetworkManager` (Rx-enabled) and Feature Services.
+  - `Navigation/`: `Coordinator` logic and Sub-coordinators (Home, Auth, etc.).
+  - `Cart/`: `CartManager` (Reactive source of truth).
+  - `Theme/`: `Brand` definition and `SkeletonView` configuration.
+  - `Security/`: `BiometricManager` and `KeychainHelper`.
+- `Features/`: Grouped by domain (Auth, Catalog, Home, Checkout, OrderHistory).
+  - Each feature follows **MVVM**, separating UI (`ViewController`) from business logic (`ViewModel`).
 
-## ⚡️ Reactive State Management (RxSwift)
+## ⚡️ Reactive State Management
 
-The app's core state is now reactive to ensure high performance and reliable synchronization.
+### 1. Reactive Cart & Auto-Sync
+- **Source of Truth:** `CartManager.shared.cartItems` (BehaviorRelay).
+- **Auto-Sync:** Changes are debounced and synced to the backend automatically.
+- **UI Binding:** Cart counts and badges are reactively updated across the app using Rx subscriptions.
 
-### 1. Reactive Cart & Automatic Sync
-- **Implementation:** `CartManager` uses a `BehaviorRelay<[CartItem]>` as the source of truth.
-- **Auto-Sync:** A debounced observer (`2.0s`) automatically triggers `syncWithBackend()` whenever the cart changes. This ensures the server always has the latest items without overwhelming the API.
-- **UI Binding:** `CatalogViewController` and `MainTabBarController` bind directly to the `cartItems` stream using **RxCocoa**, eliminating manual `reloadData()` flickering and stale badges.
+### 2. ViewModel Pattern
+- ViewModels handle data fetching and state (e.g., `HomeViewModel`).
+- State is exposed via `@Published` properties (Combine) or `BehaviorRelay` (RxSwift).
+- ViewControllers bind to these states in `viewDidLoad()`.
 
-### 2. Session & Auth Streams
-- **NetworkManager:** Exposes an `authStatus: Observable<AuthStatus>` stream.
-- **Graceful Expiration:** The UI can reactively transition to the login screen or show alerts when a session becomes unauthorized, preventing "silent pops."
+## ✨ Loading States: SkeletonView
 
-### 3. Stock-Aware UI
-- **ProductCell:** Reactively configures interaction based on `qtyOnHand`. If stock is 0, the stepper is disabled and an "Out of Stock" overlay is displayed automatically.
+We use the official **SkeletonView** library for high-performance, automatic loading states.
+
+### Implementation Mandates
+- **Namespace:** Never define a local `SkeletonView` class; always use the library.
+- **Auto-UI:** Set `isSkeletonable = true` on the actual labels, images, and containers.
+- **Animation:** Use `.showAnimatedGradientSkeleton()` for a consistent "Stitch" shimmer.
+- **Alignment:** Avoid manual skeleton overlays. The library automatically calculates frames based on your SnapKit constraints.
 
 ## 🛡️ Security & Identity (RBAC)
 
 ### Role-Based Access Control
-The app supports multiple user roles (Customer, Driver, Admin).
-- **Detection:** The `role` is returned in the `POST /login` response and persisted in `UserDefaults`.
-- **UI Switching:** `MainCoordinator` and `MainTabBarController` dynamically configure the interface:
-    - **Customer View:** [Shop | Cart | Orders | Profile]
-    - **Driver View:** [🚚 Queue | 👤 Profile]
-- **Persistence:** `AuthManager.shared.userRole` caches the role to ensure the correct UI loads instantly on "Cold Start."
-
-### Atomic Keychain Management
-`KeychainHelper.save` uses an atomic `SecItemUpdate` strategy. If an item exists, it is updated in-place. If missing, it is added. This prevents the "Delete-then-Add" window where tokens could be lost if the app is interrupted.
+- **Roles:** Customer, Driver, Admin.
+- **UI Switching:** `MainCoordinator` dynamically configures the `MainTabBarController` based on the user's role persisted in `UserDefaults` and `AuthManager`.
+- **Session Safety:** `NetworkManager` exposes an `authStatus` stream to handle token expiration gracefully.
 
 ## 💾 Persistence: SwiftData
-We use **SwiftData** for order-grade local persistence.
 - **Model:** `CartItem`.
-- **Constraint:** `variantId` is marked as `@Attribute(.unique)`.
-- **Isolation:** The local cart is explicitly cleared via `CartManager.shared.clear()` during logout to prevent data leaking between accounts.
-
-## 📡 Networking
-- **NetworkManager**: Centralized URLSession wrapper with Rx-bridge.
-- **Input Cleaning:** `AuthService` automatically trims whitespace and forces lowercase on emails to prevent common simulator typing errors.
-- **Swift 6 Safety**: All network models (`Product`, `UserData`, `AuthResponse`) conform to `Sendable` and use `nonisolated` where appropriate for background decoding.
+- **Uniqueness:** `variantId` is the primary key.
+- **Lifecycle:** Local data is wiped on logout to maintain multi-user privacy.
 
 ## 🛠 Adding a New Feature
-1. Create a new folder under `Features/Name`.
-2. Define your `Model` with `Codable` and `Sendable`.
-3. If the feature involves list data, use `RxCocoa`'s `rx.items` for binding.
-4. Update `MainTabBarController` if the feature requires a new role-specific tab.
+1. Create a `Features/Name` directory.
+2. Define a `ViewModel` for logic and state.
+3. Implement `ViewController` with `isSkeletonable` UI components.
+4. Register the new flow in a dedicated `SubCoordinator`.
+5. Bind UI to ViewModel using Combine or RxSwift.
 
-## 🌏 Localization & Copywriting
-The application is localized primarily in **Indonesian (Bahasa Indonesia)**.
-- **Mandate:** All user-facing strings, buttons, and alerts MUST be written in Indonesian.
-- **Style:** Use professional but modern "startup" Indonesian (e.g., using "Akun" instead of "Rekening" for profiles, "Lanjut" for "Next").
-- **Implementation:** Strings are currently hardcoded in ViewControllers for speed, but follow the `Indonesian` naming convention in `Assets.xcassets` where applicable.
+## 🌏 Localization
+- **Language:** Primary focus is **Indonesian (Bahasa Indonesia)**.
+- **Standard:** Use modern Indonesian startup terminology (e.g., "Pesanan" for Order, "Bayar" for Pay).
+- **Assets:** Use localized strings in `Assets.xcassets` where possible.
