@@ -2,6 +2,7 @@ import UIKit
 import SnapKit
 import Hero
 import Combine
+import SkeletonView
 
 @MainActor
 final class HomeViewController: UIViewController {
@@ -187,12 +188,12 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         if viewModel.isLoading {
             if indexPath.section == 0 {
-                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
-                cell.startShimmering()
+                let cell = collectionView.dequeueReusableCell(withIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
+                cell.showAnimatedGradientSkeleton()
                 return cell
             } else if indexPath.section == 1 {
-                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
-                cell.startShimmering()
+                let cell = collectionView.dequeueReusableCell(withIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
+                cell.showAnimatedGradientSkeleton()
                 return cell
             } else {
                 let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ProductCardView.identifier, for: indexPath) as! ProductCardView
@@ -206,12 +207,12 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
         switch section {
         case .banners(let banners):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
-            cell.stopShimmering()
+            cell.hideSkeleton()
             cell.configure(with: banners[indexPath.item])
             return cell
         case .categories(let categories):
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
-            cell.stopShimmering()
+            cell.hideSkeleton()
             cell.configure(with: categories[indexPath.item])
             return cell
         case .products(_, let items):

@@ -536,24 +536,23 @@ final class AddressCell: UITableViewCell {
     }
 }
 
-final class ReviewItemCell: UITableViewCell {
-    static let identifier = "ReviewItemCell"
-    private let container = UIView()
-    private let thumbnail = UIImageView()
-    private let nameLabel = UILabel()
-    private let priceLabel = UILabel()
+import UIKit
+import SnapKit
+import SafariServices
+import AuthenticationServices
+import Combine
+import SkeletonView
+
+@MainActor
+final class ReviewOrderViewController: UIViewController {
+...
     private let stepper = RedesignedStepper()
-    
-    private let thumbnailSkeleton = SkeletonView()
-    private let nameSkeleton = SkeletonView()
-    private let priceSkeleton = SkeletonView()
     
     var onQuantityChange: ((Int) -> Void)?
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
-        setupSkeleton()
     }
     required init?(coder: NSCoder) { fatalError() }
     
@@ -565,6 +564,7 @@ final class ReviewItemCell: UITableViewCell {
         container.backgroundColor = .white
         container.roundCorners()
         container.applyShadow(opacity: 0.04, radius: 4, offset: CGSize(width: 0, height: 1))
+        container.isSkeletonable = true
         
         container.snp.makeConstraints { make in
             make.edges.equalToSuperview().inset(UIEdgeInsets(top: 4, left: 16, bottom: 4, right: 16))
@@ -574,12 +574,18 @@ final class ReviewItemCell: UITableViewCell {
         thumbnail.layer.cornerRadius = 8
         thumbnail.clipsToBounds = true
         thumbnail.contentMode = .scaleAspectFill
+        thumbnail.isSkeletonable = true
+        thumbnail.skeletonCornerRadius = 8
         
         nameLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         nameLabel.numberOfLines = 2
+        nameLabel.isSkeletonable = true
+        nameLabel.linesCornerRadius = 4
         
         priceLabel.font = .systemFont(ofSize: 14, weight: .thin)
         priceLabel.textColor = Brand.Text.primary
+        priceLabel.isSkeletonable = true
+        priceLabel.linesCornerRadius = 4
         
         [thumbnail, nameLabel, priceLabel, stepper].forEach { container.addSubview($0) }
         
@@ -612,40 +618,12 @@ final class ReviewItemCell: UITableViewCell {
         }
     }
     
-    private func setupSkeleton() {
-        [thumbnailSkeleton, nameSkeleton, priceSkeleton].forEach { container.addSubview($0) }
-        thumbnailSkeleton.snp.makeConstraints { make in
-            make.edges.equalTo(thumbnail)
-        }
-        nameSkeleton.snp.makeConstraints { make in
-            make.top.equalTo(nameLabel)
-            make.leading.equalTo(nameLabel)
-            make.width.equalTo(120)
-            make.height.equalTo(16)
-        }
-        priceSkeleton.snp.makeConstraints { make in
-            make.top.equalTo(priceLabel)
-            make.leading.equalTo(priceLabel)
-            make.width.equalTo(60)
-            make.height.equalTo(14)
-        }
-        [thumbnailSkeleton, nameSkeleton, priceSkeleton].forEach { $0.isHidden = true }
-    }
-    
     func startLoading() {
-        [thumbnailSkeleton, nameSkeleton, priceSkeleton].forEach {
-            $0.isHidden = false
-            $0.start()
-        }
-        [thumbnail, nameLabel, priceLabel, stepper].forEach { $0.isHidden = true }
+        container.showAnimatedGradientSkeleton()
     }
     
     func stopLoading() {
-        [thumbnailSkeleton, nameSkeleton, priceSkeleton].forEach {
-            $0.stop()
-            $0.isHidden = true
-        }
-        [thumbnail, nameLabel, priceLabel, stepper].forEach { $0.isHidden = false }
+        container.hideSkeleton()
     }
     
     func configure(with item: CartItemDTO, message: String? = nil) {
@@ -654,143 +632,11 @@ final class ReviewItemCell: UITableViewCell {
         priceLabel.text = item.price.formattedIDR
         stepper.value = item.quantity
     }
-    
-    override func prepareForReuse() {
-        super.prepareForReuse()
-        stopLoading()
-    }
-}
-
-final class RedesignedStepper: UIView {
-    var value: Int = 0 { didSet { valueLabel.text = "\(value)" } }
-    var onValueChange: ((Int) -> Void)?
-    
-    private let minusBtn = UIButton(type: .system)
-    private let plusBtn = UIButton(type: .system)
-    private let valueLabel = UILabel()
-    
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        backgroundColor = Brand.primary.withAlphaComponent(0.1)
-        layer.cornerRadius = 18
-        
-        minusBtn.setImage(UIImage(systemName: "minus"), for: .normal)
-        plusBtn.setImage(UIImage(systemName: "plus"), for: .normal)
-        [minusBtn, plusBtn].forEach { $0.tintColor = Brand.primary }
-        
-        valueLabel.font = .systemFont(ofSize: 15, weight: .bold)
-        valueLabel.textAlignment = .center
-        
-        let stack = UIStackView(arrangedSubviews: [minusBtn, valueLabel, plusBtn])
-        stack.axis = .horizontal
-        stack.distribution = .fillEqually
-        addSubview(stack)
-        stack.snp.makeConstraints { make in make.edges.equalToSuperview() }
-        
-        minusBtn.addTarget(self, action: #selector(didTapMinus), for: .touchUpInside)
-        plusBtn.addTarget(self, action: #selector(didTapPlus), for: .touchUpInside)
-    }
-    required init?(coder: NSCoder) { fatalError() }
-    
-    @objc private func didTapMinus() { if value > 0 { value -= 1; onValueChange?(value) } }
-    @objc private func didTapPlus() { value += 1; onValueChange?(value) }
-}
-
-final class VoucherCell: UITableViewCell {
-    static let identifier = "VoucherCell"
-    private let container = UIView()
-    private let icon = UIImageView(image: UIImage(systemName: "tag.fill"))
-    private let title = UILabel()
-    private let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
-    
-    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: style, reuseIdentifier: reuseIdentifier)
-        setupUI()
-    }
-    required init?(coder: NSCoder) { fatalError() }
-    
-    private func setupUI() {
-        backgroundColor = .clear
-        contentView.addSubview(container)
-        container.backgroundColor = .white
-        container.roundCorners()
-        container.snp.makeConstraints { make in
-            make.edges.equalToSuperview().inset(UIEdgeInsets(top: 8, left: 16, bottom: 4, right: 16))
-            make.height.equalTo(52)
-        }
-        
-        icon.tintColor = Brand.primary
-        title.text = "Tambah Voucher"
-        title.textColor = Brand.primary
-        title.font = .systemFont(ofSize: 15, weight: .semibold)
-        chevron.tintColor = .systemGray3
-        
-        [icon, title, chevron].forEach { container.addSubview($0) }
-        icon.snp.makeConstraints { make in make.leading.equalToSuperview().offset(16); make.centerY.equalToSuperview(); make.size.equalTo(20) }
-        title.snp.makeConstraints { make in make.leading.equalTo(icon.snp.trailing).offset(12); make.centerY.equalToSuperview() }
-        chevron.snp.makeConstraints { make in make.trailing.equalToSuperview().offset(-16); make.centerY.equalToSuperview(); make.size.equalTo(14) }
-    }
-}
-
-final class PaymentMethodCell: UITableViewCell {
-    static let identifier = "PaymentMethodCell"
-    private let container = UIView()
-    private let icon = UIImageView(image: UIImage(systemName: "creditcard.fill"))
-    private let title = UILabel()
-    private let methodLabel = UILabel()
-    private let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
-    
-    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: style, reuseIdentifier: reuseIdentifier)
-        setupUI()
-    }
-    required init?(coder: NSCoder) { fatalError() }
-    
-    private func setupUI() {
-        backgroundColor = .clear
-        contentView.addSubview(container)
-        container.backgroundColor = .white
-        container.roundCorners()
-        container.snp.makeConstraints { make in
-            make.edges.equalToSuperview().inset(UIEdgeInsets(top: 4, left: 16, bottom: 8, right: 16))
-            make.height.equalTo(52)
-        }
-        
-        icon.tintColor = Brand.Text.secondary
-        title.text = "Metode Pembayaran"
-        title.font = .systemFont(ofSize: 15)
-        methodLabel.text = "Transfer Bank"
-        methodLabel.font = .systemFont(ofSize: 14)
-        methodLabel.textColor = Brand.Text.secondary
-        chevron.tintColor = .systemGray3
-        
-        [icon, title, methodLabel, chevron].forEach { container.addSubview($0) }
-        icon.snp.makeConstraints { make in make.leading.equalToSuperview().offset(16); make.centerY.equalToSuperview(); make.size.equalTo(20) }
-        title.snp.makeConstraints { make in make.leading.equalTo(icon.snp.trailing).offset(12); make.centerY.equalToSuperview() }
-        methodLabel.snp.makeConstraints { make in make.trailing.equalTo(chevron.snp.leading).offset(-8); make.centerY.equalToSuperview() }
-        chevron.snp.makeConstraints { make in make.trailing.equalToSuperview().offset(-16); make.centerY.equalToSuperview(); make.size.equalTo(14) }
-    }
-    
-    func configure(with account: LinkedAccount) {
-        title.text = "Metode Pembayaran"
-        let channel = account.channelCode.replacingOccurrences(of: "ID_", with: "")
-        methodLabel.text = "\(channel) - \(account.accountDetails)"
-    }
-    
-    func configureDefault() {
-        title.text = "Metode Pembayaran"
-        methodLabel.text = "Transfer Bank"
-    }
-}
-
+...
 final class PricingCell: UITableViewCell {
     static let identifier = "PricingCell"
     private let container = UIView()
     private let stack = UIStackView()
-    
-    // Dynamic Shimmers
-    private let deliverySkeleton = SkeletonView()
-    private let totalSkeleton = SkeletonView()
     
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -805,6 +651,7 @@ final class PricingCell: UITableViewCell {
         container.backgroundColor = .white
         container.roundCorners()
         container.applyShadow(opacity: 0.04, radius: 4, offset: CGSize(width: 0, height: 1))
+        container.isSkeletonable = true
         
         container.snp.makeConstraints { make in
             make.edges.equalToSuperview().inset(UIEdgeInsets(top: 8, left: 16, bottom: 20, right: 16))
@@ -812,6 +659,7 @@ final class PricingCell: UITableViewCell {
         
         stack.axis = .vertical
         stack.spacing = 0
+        stack.isSkeletonable = true
         container.addSubview(stack)
         stack.snp.makeConstraints { make in make.edges.equalToSuperview().inset(8) }
     }
@@ -877,23 +725,26 @@ final class PricingCell: UITableViewCell {
     
     private func createShimmerRow(label: String, isTotal: Bool = false) -> UIView {
         let view = UIView()
+        view.isSkeletonable = true
         let l = UILabel(); l.text = label
         l.font = isTotal ? .systemFont(ofSize: 15, weight: .semibold) : .systemFont(ofSize: 14)
         
-        let skeleton = SkeletonView()
+        let skeletonPlaceholder = UIView()
+        skeletonPlaceholder.isSkeletonable = true
+        skeletonPlaceholder.skeletonCornerRadius = 4
         
-        view.addSubview(l); view.addSubview(skeleton)
+        view.addSubview(l); view.addSubview(skeletonPlaceholder)
         l.snp.makeConstraints { make in 
             make.leading.equalToSuperview().offset(12)
             make.top.bottom.equalToSuperview().inset(8)
         }
-        skeleton.snp.makeConstraints { make in 
+        skeletonPlaceholder.snp.makeConstraints { make in 
             make.trailing.equalToSuperview().offset(-12)
             make.centerY.equalTo(l)
             make.width.equalTo(60)
             make.height.equalTo(14)
         }
-        skeleton.start()
+        view.showAnimatedGradientSkeleton()
         return view
     }
     

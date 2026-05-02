@@ -1,5 +1,6 @@
 import UIKit
 import SnapKit
+import SkeletonView
 
 final class OrderDetailViewController: UIViewController {
     
@@ -164,58 +165,42 @@ final class OrderItemDetailCell: UITableViewCell {
     private let variantLabel = UILabel()
     private let priceLabel = UILabel()
     
-    private let nameSkeleton = SkeletonView()
-    private let variantSkeleton = SkeletonView()
-    private let priceSkeleton = SkeletonView()
-    
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
-        setupSkeleton()
     }
     
     required init?(coder: NSCoder) { fatalError() }
     
     private func setupUI() {
         selectionStyle = .none
+        contentView.isSkeletonable = true
+        
         let stack = UIStackView(arrangedSubviews: [nameLabel, variantLabel, priceLabel])
         stack.axis = .vertical; stack.spacing = 4
+        stack.isSkeletonable = true
         contentView.addSubview(stack)
         stack.snp.makeConstraints { make in make.edges.equalToSuperview().inset(12) }
         
         nameLabel.font = .systemFont(ofSize: 16, weight: .medium)
+        nameLabel.isSkeletonable = true
+        nameLabel.linesCornerRadius = 4
+        
         variantLabel.font = .systemFont(ofSize: 12); variantLabel.textColor = .secondaryLabel
+        variantLabel.isSkeletonable = true
+        variantLabel.linesCornerRadius = 4
+        
         priceLabel.font = .systemFont(ofSize: 14, weight: .semibold); priceLabel.textColor = Brand.primary
-    }
-    
-    private func setupSkeleton() {
-        [nameSkeleton, variantSkeleton, priceSkeleton].forEach { contentView.addSubview($0) }
-        nameSkeleton.snp.makeConstraints { make in
-            make.top.leading.equalToSuperview().inset(12)
-            make.width.equalTo(150); make.height.equalTo(18)
-        }
-        variantSkeleton.snp.makeConstraints { make in
-            make.top.equalTo(nameSkeleton.snp.bottom).offset(6)
-            make.leading.equalToSuperview().inset(12)
-            make.width.equalTo(100); make.height.equalTo(14)
-        }
-        priceSkeleton.snp.makeConstraints { make in
-            make.top.equalTo(variantSkeleton.snp.bottom).offset(6)
-            make.leading.equalToSuperview().inset(12)
-            make.width.equalTo(80); make.height.equalTo(16)
-            make.bottom.equalToSuperview().inset(12)
-        }
-        [nameSkeleton, variantSkeleton, priceSkeleton].forEach { $0.isHidden = true }
+        priceLabel.isSkeletonable = true
+        priceLabel.linesCornerRadius = 4
     }
     
     func startLoading() {
-        [nameSkeleton, variantSkeleton, priceSkeleton].forEach { $0.isHidden = false; $0.start() }
-        [nameLabel, variantLabel, priceLabel].forEach { $0.isHidden = true }
+        contentView.showAnimatedGradientSkeleton()
     }
     
     func stopLoading() {
-        [nameSkeleton, variantSkeleton, priceSkeleton].forEach { $0.stop(); $0.isHidden = true }
-        [nameLabel, variantLabel, priceLabel].forEach { $0.isHidden = false }
+        contentView.hideSkeleton()
     }
     
     func configure(with item: OrderItem) {

@@ -1,5 +1,6 @@
 import UIKit
 import SnapKit
+import SkeletonView
 
 class OrderCell: UITableViewCell {
     static let identifier = "OrderCell"
@@ -9,15 +10,9 @@ class OrderCell: UITableViewCell {
     private let amountLabel = UILabel()
     private let dateLabel = UILabel()
     
-    private let idSkeleton = SkeletonView()
-    private let dateSkeleton = SkeletonView()
-    private let amountSkeleton = SkeletonView()
-    private let statusSkeleton = SkeletonView()
-    
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         setupUI()
-        setupSkeleton()
     }
     
     required init?(coder: NSCoder) {
@@ -25,76 +20,57 @@ class OrderCell: UITableViewCell {
     }
     
     private func setupUI() {
+        contentView.isSkeletonable = true
         orderIdLabel.font = .systemFont(ofSize: 16, weight: .bold)
+        orderIdLabel.isSkeletonable = true
+        orderIdLabel.linesCornerRadius = 4
+        
         statusLabel.font = .systemFont(ofSize: 14, weight: .semibold)
+        statusLabel.isSkeletonable = true
+        statusLabel.linesCornerRadius = 4
+        
         amountLabel.font = .systemFont(ofSize: 16, weight: .medium)
         amountLabel.textAlignment = .right
+        amountLabel.isSkeletonable = true
+        amountLabel.linesCornerRadius = 4
+        
         dateLabel.font = .systemFont(ofSize: 12)
         dateLabel.textColor = .secondaryLabel
+        dateLabel.isSkeletonable = true
+        dateLabel.linesCornerRadius = 4
         
         [orderIdLabel, statusLabel, amountLabel, dateLabel].forEach { contentView.addSubview($0) }
         
         orderIdLabel.snp.makeConstraints { make in
             make.top.leading.equalToSuperview().inset(16)
+            make.width.greaterThanOrEqualTo(100)
         }
         
         dateLabel.snp.makeConstraints { make in
             make.top.equalTo(orderIdLabel.snp.bottom).offset(4)
             make.leading.equalToSuperview().inset(16)
             make.bottom.equalToSuperview().inset(16)
+            make.width.greaterThanOrEqualTo(120)
         }
         
         amountLabel.snp.makeConstraints { make in
             make.top.trailing.equalToSuperview().inset(16)
+            make.width.greaterThanOrEqualTo(80)
         }
         
         statusLabel.snp.makeConstraints { make in
             make.trailing.equalToSuperview().inset(16)
             make.centerY.equalTo(dateLabel)
+            make.width.greaterThanOrEqualTo(60)
         }
-    }
-    
-    private func setupSkeleton() {
-        [idSkeleton, dateSkeleton, amountSkeleton, statusSkeleton].forEach { contentView.addSubview($0) }
-        idSkeleton.snp.makeConstraints { make in
-            make.top.leading.equalToSuperview().inset(16)
-            make.width.equalTo(100)
-            make.height.equalTo(18)
-        }
-        dateSkeleton.snp.makeConstraints { make in
-            make.top.equalTo(idSkeleton.snp.bottom).offset(6)
-            make.leading.equalToSuperview().inset(16)
-            make.width.equalTo(120)
-            make.height.equalTo(14)
-        }
-        amountSkeleton.snp.makeConstraints { make in
-            make.top.trailing.equalToSuperview().inset(16)
-            make.width.equalTo(80)
-            make.height.equalTo(18)
-        }
-        statusSkeleton.snp.makeConstraints { make in
-            make.trailing.equalToSuperview().inset(16)
-            make.centerY.equalTo(dateSkeleton)
-            make.width.equalTo(60)
-            make.height.equalTo(14)
-        }
-        [idSkeleton, dateSkeleton, amountSkeleton, statusSkeleton].forEach { $0.isHidden = true }
     }
     
     func startLoading() {
-        [idSkeleton, dateSkeleton, amountSkeleton, statusSkeleton].forEach {
-            $0.isHidden = false
-            $0.start()
-        }
-        [orderIdLabel, statusLabel, amountLabel, dateLabel].forEach { $0.isHidden = true }
+        contentView.showAnimatedGradientSkeleton()
     }
     
     func stopLoading() {
-        [idSkeleton, dateSkeleton, amountSkeleton, statusSkeleton].forEach {
-            $0.stop()
-            $0.isHidden = true
-        }
-        [orderIdLabel, statusLabel, amountLabel, dateLabel].forEach { $0.isHidden = false }
+        contentView.hideSkeleton()
     }
     
     func configure(with order: Order) {

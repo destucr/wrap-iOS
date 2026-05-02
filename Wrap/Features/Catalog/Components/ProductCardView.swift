@@ -2,6 +2,7 @@ import UIKit
 import Kingfisher
 import Hero
 import SnapKit
+import SkeletonView
 
 final class ProductCardView: UICollectionViewCell {
     static let identifier = "ProductCardView"
@@ -14,6 +15,8 @@ final class ProductCardView: UICollectionViewCell {
         iv.clipsToBounds = true
         iv.backgroundColor = Brand.secondary
         iv.roundCorners(radius: 12)
+        iv.isSkeletonable = true
+        iv.skeletonCornerRadius = 12
         return iv
     }()
 
@@ -23,6 +26,8 @@ final class ProductCardView: UICollectionViewCell {
         label.textColor = Brand.Text.primary
         label.numberOfLines = 2
         label.lineBreakMode = .byTruncatingTail
+        label.isSkeletonable = true
+        label.linesCornerRadius = 4
         return label
     }()
     
@@ -32,6 +37,8 @@ final class ProductCardView: UICollectionViewCell {
         label.textColor = Brand.Text.primary
         label.setContentHuggingPriority(.required, for: .horizontal)
         label.setContentCompressionResistancePriority(.required, for: .horizontal)
+        label.isSkeletonable = true
+        label.linesCornerRadius = 4
         return label
     }()
     
@@ -59,20 +66,15 @@ final class ProductCardView: UICollectionViewCell {
         stack.axis = .horizontal
         stack.spacing = 2
         stack.alignment = .center
+        stack.isSkeletonable = true
         return stack
     }()
     
     private let stepper = InteractiveStepper()
     
-    private let skeletonContainer = UIView()
-    private let imageSkeleton = SkeletonView()
-    private let nameSkeleton = SkeletonView()
-    private let priceSkeleton = SkeletonView()
-    
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupUI()
-        setupSkeleton()
     }
     
     required init?(coder: NSCoder) {
@@ -95,10 +97,12 @@ final class ProductCardView: UICollectionViewCell {
         contentView.backgroundColor = .white
         contentView.layer.cornerRadius = 16
         contentView.layer.masksToBounds = true
+        contentView.isSkeletonable = true
         
         // Add shadow to the cell layer (not contentView)
         self.backgroundColor = .clear
         self.layer.masksToBounds = false
+        self.isSkeletonable = true
         self.applyCardShadow()
         
         contentView.addSubview(imageView)
@@ -144,47 +148,12 @@ final class ProductCardView: UICollectionViewCell {
         }
     }
     
-    private func setupSkeleton() {
-        skeletonContainer.backgroundColor = .white
-        skeletonContainer.isHidden = true
-        contentView.addSubview(skeletonContainer)
-        skeletonContainer.snp.makeConstraints { make in
-            make.edges.equalToSuperview()
-        }
-        
-        [imageSkeleton, nameSkeleton, priceSkeleton].forEach { skeletonContainer.addSubview($0) }
-        
-        imageSkeleton.snp.makeConstraints { make in
-            make.top.leading.trailing.equalToSuperview().inset(8)
-            make.height.equalTo(imageSkeleton.snp.width)
-        }
-        
-        nameSkeleton.snp.makeConstraints { make in
-            make.top.equalTo(imageSkeleton.snp.bottom).offset(8)
-            make.leading.trailing.equalToSuperview().inset(10)
-            make.height.equalTo(16)
-        }
-        
-        priceSkeleton.snp.makeConstraints { make in
-            make.top.equalTo(nameSkeleton.snp.bottom).offset(8)
-            make.leading.equalToSuperview().offset(10)
-            make.width.equalTo(60)
-            make.height.equalTo(14)
-        }
-    }
-    
     func startLoading() {
-        skeletonContainer.isHidden = false
-        imageSkeleton.start()
-        nameSkeleton.start()
-        priceSkeleton.start()
+        contentView.showAnimatedGradientSkeleton()
     }
     
     func stopLoading() {
-        skeletonContainer.isHidden = true
-        imageSkeleton.stop()
-        nameSkeleton.stop()
-        priceSkeleton.stop()
+        contentView.hideSkeleton()
     }
     
     func configure(with product: Product) {
