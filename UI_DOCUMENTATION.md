@@ -13,7 +13,9 @@ Status: Active (Tab Bar Visibility & Safe Area Fixes)
 - **Category Zoom**: `CategoryCell` uses `.scaleAspectFill` to ensure icons fill the circular container for a "zoomed-in" look.
 
 ### 1.2 Unified Checkout Flow (`ReviewOrderViewController`)
-- **Architecture**: The Cart and Review Order screens are unified into a single `UITableView` based controller.
+- **Architecture**: The Cart and Review Order screens are unified into a single `UITableView` powered by **Diffable Data Sources**.
+- **State-Driven**: Uses a `ViewState` machine to manage loading, success, and error states.
+- **Granular Shimmers**: Implements a "Liquid UI" where pricing components (Delivery Fee, Total) shimmer individually while the backend calculates final values, preventing full-screen reloads.
 - **Components**:
     - **Header**: Navigation item title "Review Order" (or hidden in empty state).
     - **Section 0**: Delivery Address card (`AddressCell`).
@@ -68,7 +70,9 @@ Status: Active (Tab Bar Visibility & Safe Area Fixes)
 3. **Edit**: 
     - User adjusts quantity using the stepper.
     - User **swipes left** on an item to delete it.
-4. **Payment**: User taps **"Bayar Sekarang"** to initiate the Xendit payment flow.
+4. **Payment**: 
+    - **Path A (V1)**: User taps **"Bayar Sekarang"** to initiate the Xendit payment flow.
+    - **Path B (V2 - Direct)**: User initiates a direct OVO SNAP charge (currently in Staging).
 5. **Success**: User returns to app -> `MainCoordinator` shows `OrderSuccessViewController`.
 
 ### 2.4 Post-Purchase Tracking

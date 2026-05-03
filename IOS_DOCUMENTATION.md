@@ -28,15 +28,15 @@ We use a modular, feature-based architecture powered by **RxSwift/Combine** for 
 - State is exposed via `@Published` properties (Combine) or `BehaviorRelay` (RxSwift).
 - ViewControllers bind to these states in `viewDidLoad()`.
 
-## ✨ Loading States: SkeletonView
+## ✨ Loading States: Custom Shimmer (Skeleton)
 
-We use the official **SkeletonView** library for high-performance, automatic loading states.
+We use a custom-built **Shimmer (Skeleton) System** powered by `CAGradientLayer` and `CABasicAnimation` for high-performance, predictable loading states.
 
 ### Implementation Mandates
-- **Namespace:** Never define a local `SkeletonView` class; always use the library.
-- **Auto-UI:** Set `isSkeletonable = true` on the actual labels, images, and containers.
-- **Animation:** Use `.showAnimatedGradientSkeleton()` for a consistent "Stitch" shimmer.
-- **Alignment:** Avoid manual skeleton overlays. The library automatically calculates frames based on your SnapKit constraints.
+- **Namespace:** Access through `UIView` extensions: `.startShimmering()` and `.stopShimmering()`.
+- **Reusable Component:** Use the `SkeletonView` class for dedicated shimmering blocks.
+- **Visual Design:** Shimmers must match the shape and constraints of the final content to reduce perceived latency.
+- **Diffable Integration:** When using Diffable Data Sources, include an `isLoading` flag in your RowItems to trigger state-based shimmer transitions.
 
 ## 🛡️ Security & Identity (RBAC)
 
