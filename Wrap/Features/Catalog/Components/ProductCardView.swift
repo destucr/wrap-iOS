@@ -230,21 +230,29 @@ final class ProductCardView: UICollectionViewCell {
         let weight = product.weightLabel ?? product.unitOfMeasure
         unitLabel.text = weight != nil ? "/ \(weight!)" : ""
         
-        if let firstVariant = product.variants?.first {
-            let stock = firstVariant.qtyOnHand
-            if stock > 0 && stock < 5 {
-                scarcityLabel.text = "Sisa \(stock)"
-                scarcityLabel.isHidden = false
-            } else {
-                scarcityLabel.isHidden = true
-            }
-            // Sync with cart state
-            let currentQty = CartManager.shared.quantity(for: firstVariant.id)
-            stepper.setValue(currentQty)
-        } else {
+        guard let firstVariant = product.variants?.first else {
             scarcityLabel.isHidden = true
             stepper.setValue(0)
+            stepper.isUserInteractionEnabled = true
+            return
         }
+
+        let stock = firstVariant.qtyOnHand
+        if stock > 0 && stock < 5 {
+            scarcityLabel.text = "Sisa \(stock)"
+            scarcityLabel.isHidden = false
+        } else {
+            scarcityLabel.isHidden = true
+        }
+
+        let isOutOfStock = stock <= 0
+        stepper.isUserInteractionEnabled = !isOutOfStock
+        // Note: ProductCardView doesn't have an outOfStockOverlay in the code I saw, 
+        // but we should at least disable the stepper if stock is 0.
+
+        // Sync with cart state
+        let currentQty = CartManager.shared.quantity(for: firstVariant.id)
+        stepper.setValue(currentQty)
         
         if let imageUrlString = product.images?.first, let url = URL(string: imageUrlString) {
             imageView.kf.setImage(with: url, placeholder: UIImage(systemName: "photo", withConfiguration: UIImage.SymbolConfiguration(pointSize: 40))) { [weak self] result in

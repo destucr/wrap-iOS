@@ -123,19 +123,21 @@ class ProductCell: UITableViewCell {
         productImageView.hero.id = "image_\(product.id.uuidString)"
         nameLabel.hero.id = "title_\(product.id.uuidString)"
         
-        let firstVariant = product.variants?.first
-        let stock = firstVariant?.qtyOnHand ?? 0
+        guard let firstVariant = product.variants?.first else {
+            outOfStockOverlay.isHidden = true
+            stepper.isUserInteractionEnabled = true
+            stepper.setValue(0)
+            return
+        }
+        
+        let stock = firstVariant.qtyOnHand
         let isOutOfStock = stock <= 0
         
         outOfStockOverlay.isHidden = !isOutOfStock
         stepper.isUserInteractionEnabled = !isOutOfStock
         
-        if let variantId = firstVariant?.id {
-            let currentQty = CartManager.shared.quantity(for: variantId)
-            stepper.setValue(currentQty)
-        } else {
-            stepper.setValue(0)
-        }
+        let currentQty = CartManager.shared.quantity(for: firstVariant.id)
+        stepper.setValue(currentQty)
         
         if let imageUrlString = product.images?.first, let url = URL(string: imageUrlString) {
             productImageView.kf.setImage(with: url, placeholder: UIImage(systemName: "photo"))
