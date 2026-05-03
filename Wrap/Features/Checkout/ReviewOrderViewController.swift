@@ -19,6 +19,7 @@ final class ReviewOrderViewController: UIViewController {
     private var previewState: ViewState<CheckoutPreviewResponse> = .idle
     private var userProfile: UserData?
     private var selectedSavedAddress: SavedAddress?
+    private var etaInfo: ETAInfo?
     private var cancellables = Set<AnyCancellable>()
     
     // Diffable Data Source Types
@@ -35,7 +36,7 @@ final class ReviewOrderViewController: UIViewController {
         case cartItem(CartItemDTO, message: String?, isLoading: Bool)
         case voucher
         case paymentMethod(LinkedAccount?)
-        case pricing(CheckoutPreviewResponse?, Double, isLoading: Bool)
+        case pricing(CheckoutPreviewResponse?, Double, ETAInfo?, isLoading: Bool)
         case recommendation(Product)
     }
     
@@ -93,6 +94,7 @@ final class ReviewOrderViewController: UIViewController {
         fetchRecommendations()
         fetchLinkedAccounts()
         fetchProfile()
+        fetchETA()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -207,12 +209,12 @@ final class ReviewOrderViewController: UIViewController {
                 }
                 return cell
                 
-            case .pricing(let response, let subtotal, let isLoading):
+            case .pricing(let response, let subtotal, let eta, let isLoading):
                 let cell = tableView.dequeueReusableCell(withIdentifier: PricingCell.identifier, for: indexPath) as! PricingCell
                 if isLoading {
                     cell.startLoading()
                 } else if let response = response {
-                    cell.configure(with: response)
+                    cell.configure(with: response, etaInfo: eta)
                 } else {
                     cell.configure(subtotal: subtotal)
                 }
@@ -254,7 +256,7 @@ final class ReviewOrderViewController: UIViewController {
         }
         snapshot.appendItems(itemRows, toSection: .items)
         snapshot.appendItems([.voucher, .paymentMethod(selectedAccount)], toSection: .payment)
-        snapshot.appendItems([.pricing(previewResponse, CartManager.shared.totalAmount, isLoading: isLoading)], toSection: .pricing)
+        snapshot.appendItems([.pricing(previewResponse, CartManager.shared.totalAmount, etaInfo, isLoading: isLoading)], toSection: .pricing)
         
         dataSource.apply(snapshot, animatingDifferences: true)
     }
@@ -294,6 +296,17 @@ final class ReviewOrderViewController: UIViewController {
                 self.applySnapshot()
             } catch {
                 print("Failed to fetch profile in Checkout: \(error)")
+            }
+        }
+    }
+
+    private func fetchETA() {
+        Task {
+            do {
+                self.etaInfo = try await CatalogService.shared.fetchETA()
+                self.applySnapshot()
+            } catch {
+                print("Failed to fetch ETA in Checkout: \(error)")
             }
         }
     }
@@ -757,7 +770,7 @@ final class PricingCell: UITableViewCell {
         stack.addArrangedSubview(createRow(label: "Total Pembayaran", value: (subtotal + 6000.0).formattedIDR, isTotal: true))
     }
     
-    func configure(with response: CheckoutPreviewResponse) {
+    func configure(with response: CheckoutPreviewResponse, etaInfo: ETAInfo? = nil) {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         stack.addArrangedSubview(createRow(label: "Ringkasan Pesanan", value: response.subtotal.formattedIDR))
         stack.addArrangedSubview(createDivider())
@@ -768,8 +781,14 @@ final class PricingCell: UITableViewCell {
         stack.addArrangedSubview(createDivider())
         
         stack.addArrangedSubview(createRow(label: "Biaya Layanan", value: response.serviceFee.formattedIDR))
-        stack.addArrangedSubview(createDivider())
         
+        if let eta = etaInfo {
+            stack.addArrangedSubview(createDivider())
+            let etaColor = eta.state == .idle ? Brand.primary : (eta.state == .busy ? .systemOrange : .systemRed)
+            stack.addArrangedSubview(createRow(label: "Estimasi Sampai", value: "\(eta.etaMins) Menit", valueColor: etaColor))
+        }
+        
+        stack.addArrangedSubview(createDivider())
         stack.addArrangedSubview(createRow(label: "Total Pembayaran", value: response.total.formattedIDR, isTotal: true))
     }
     

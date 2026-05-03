@@ -1,20 +1,5 @@
 import Foundation
 
-struct SavedAddress: Codable, Sendable, Hashable {
-    let id: UUID
-    let label: String
-    let fullAddress: String
-    let latitude: Double
-    let longitude: Double
-    let postalCode: String
-    
-    enum CodingKeys: String, CodingKey {
-        case id, label, latitude, longitude
-        case fullAddress = "full_address"
-        case postalCode = "postal_code"
-    }
-}
-
 @MainActor
 class UserService {
     static let shared = UserService()
@@ -69,7 +54,7 @@ class UserService {
     }
     
     func fetchSavedAddresses() async throws -> [SavedAddress] {
-        struct Response: Codable {
+        nonisolated struct Response: Codable, Sendable {
             let addresses: [SavedAddress]
         }
         let resp: Response = try await NetworkManager.shared.request(endpoint: "/user/addresses")

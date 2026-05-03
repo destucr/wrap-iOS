@@ -40,6 +40,7 @@ nonisolated struct UserData: Codable, Sendable, Hashable, Equatable {
     let longitude: Double?
     let biometricsEnabled: Bool
     let role: UserRole
+    let driverStatus: DriverState?
 
     enum CodingKeys: String, CodingKey {
         case id, email, role, latitude, longitude
@@ -48,18 +49,19 @@ nonisolated struct UserData: Codable, Sendable, Hashable, Equatable {
         case phoneNumber = "phone_number"
         case postalCode = "postal_code"
         case biometricsEnabled = "biometrics_enabled"
+        case driverStatus = "driver_status"
     }
 }
 
-nonisolated struct SavedAddress: Codable, Sendable {
+nonisolated struct SavedAddress: Codable, Sendable, Hashable, Equatable {
     let id: UUID
-    let userId: UUID
+    let userId: UUID?
     let label: String
     let fullAddress: String
     let latitude: Double
     let longitude: Double
     let postalCode: String
-    let createdAt: Date
+    let createdAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id, label

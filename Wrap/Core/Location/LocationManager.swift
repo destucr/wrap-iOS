@@ -39,6 +39,16 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.first else { return }
         
+        // ELITE: Report location to backend if Driver for Geofencing
+        if AuthManager.shared.userRole == .driver {
+            Task {
+                try? await LogisticsService.shared.updateLocation(
+                    lat: location.coordinate.latitude,
+                    lng: location.coordinate.longitude
+                )
+            }
+        }
+        
         Task {
             do {
                 let placemarks = try await geocoder.reverseGeocodeLocation(location)

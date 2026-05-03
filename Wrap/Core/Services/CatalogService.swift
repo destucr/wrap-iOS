@@ -26,6 +26,10 @@ class CatalogService {
         return try await NetworkManager.shared.request(endpoint: "/catalog/detail/\(id.uuidString.lowercased())")
     }
     
+    func fetchETA() async throws -> ETAInfo {
+        return try await NetworkManager.shared.request(endpoint: "/logistics/eta")
+    }
+    
     func fetchStock(variantId: UUID) async throws -> Int {
         let resp: [String: Int] = try await NetworkManager.shared.request(endpoint: "/catalog/stock/\(variantId.uuidString.lowercased())")
         return resp["qty"] ?? 0

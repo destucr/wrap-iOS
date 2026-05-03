@@ -13,6 +13,7 @@ final class HomeViewModel {
     @Published private(set) var sections: [Section] = []
     @Published private(set) var addressText: String = "Mengirim ke..."
     @Published private(set) var isLoading: Bool = false
+    @Published private(set) var etaInfo: ETAInfo?
     
     func fetchData() async {
         isLoading = true
@@ -21,8 +22,11 @@ final class HomeViewModel {
         do {
             async let feedTask = CatalogService.shared.fetchHome()
             async let profileTask = UserService.shared.fetchProfile()
+            async let etaTask = CatalogService.shared.fetchETA()
             
-            let (fetchedFeed, user) = try await (feedTask, profileTask)
+            let (fetchedFeed, user, eta) = try await (feedTask, profileTask, etaTask)
+            
+            self.etaInfo = eta
             
             // Handle Profile/Address
             let address = user.fullAddress ?? user.email

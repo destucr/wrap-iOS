@@ -61,6 +61,8 @@ final class HomeViewController: UIViewController {
         return view
     }()
     
+    private let etaBanner = DynamicETABanner()
+    
     private lazy var collectionView: UICollectionView = {
         let cv = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
         cv.backgroundColor = .white
@@ -103,6 +105,7 @@ final class HomeViewController: UIViewController {
         view.addSubview(addressBar)
         addressBar.addSubview(addressLabel)
         view.addSubview(searchBar)
+        view.addSubview(etaBanner)
         view.addSubview(collectionView)
         
         // ELITE: Use a single "Live" layout that captures the viewModel state
@@ -127,8 +130,15 @@ final class HomeViewController: UIViewController {
             make.height.equalTo(44)
         }
         
+        etaBanner.snp.makeConstraints { make in
+            make.top.equalTo(searchBar.snp.bottom).offset(12)
+            make.leading.trailing.equalToSuperview().inset(16)
+            // Height is dynamic based on content but we'll set a min height
+            make.height.greaterThanOrEqualTo(48)
+        }
+        
         collectionView.snp.makeConstraints { make in
-            make.top.equalTo(searchBar.snp.bottom).offset(8)
+            make.top.equalTo(etaBanner.snp.bottom).offset(8)
             make.leading.trailing.bottom.equalToSuperview()
         }
 
@@ -138,6 +148,19 @@ final class HomeViewController: UIViewController {
     }
     
     private func bindViewModel() {
+        // Bind ETA Banner
+        viewModel.$etaInfo
+            .receive(on: RunLoop.main)
+            .sink { [weak self] info in
+                if let info = info {
+                    self?.etaBanner.isHidden = false
+                    self?.etaBanner.configure(with: info)
+                } else {
+                    self?.etaBanner.isHidden = true
+                }
+            }
+            .store(in: &cancellables)
+
         // ELITE: Now we only need to reload data. The "Live" layout updates itself dynamically.
         Publishers.CombineLatest(viewModel.$sections, viewModel.$isLoading)
             .receive(on: RunLoop.main)
@@ -188,11 +211,11 @@ extension HomeViewController: UICollectionViewDataSource, UICollectionViewDelega
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         if viewModel.isLoading {
             if indexPath.section == 0 {
-                let cell = collectionView.dequeueReusableCell(withIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: BannerCell.identifier, for: indexPath) as! BannerCell
                 cell.showAnimatedGradientSkeleton()
                 return cell
             } else if indexPath.section == 1 {
-                let cell = collectionView.dequeueReusableCell(withIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CategoryCell.identifier, for: indexPath) as! CategoryCell
                 cell.showAnimatedGradientSkeleton()
                 return cell
             } else {

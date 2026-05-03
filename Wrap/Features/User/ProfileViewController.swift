@@ -67,6 +67,13 @@ final class ProfileViewController: UIViewController {
         return sw
     }()
     
+    private let driverStatusControl: UISegmentedControl = {
+        let sc = UISegmentedControl(items: ["Idle", "Busy", "Full", "Off"])
+        sc.selectedSegmentTintColor = Brand.primary
+        sc.setTitleTextAttributes([.foregroundColor: UIColor.white], for: .selected)
+        return sc
+    }()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -102,6 +109,16 @@ final class ProfileViewController: UIViewController {
                 biometricSwitch.setOn(user.biometricsEnabled, animated: true)
                 AuthManager.shared.isBiometricsEnabled = user.biometricsEnabled
             }
+            
+            if let status = user.driverStatus {
+                switch status {
+                case .idle: driverStatusControl.selectedSegmentIndex = 0
+                case .busy: driverStatusControl.selectedSegmentIndex = 1
+                case .overloaded: driverStatusControl.selectedSegmentIndex = 2
+                case .offline: driverStatusControl.selectedSegmentIndex = 3
+                }
+            }
+            
             tableView.reloadData()
         case .error(let message):
             headerView.hideSkeleton()
@@ -130,6 +147,7 @@ final class ProfileViewController: UIViewController {
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "DefaultCell")
         
         biometricSwitch.addTarget(self, action: #selector(handleBiometricToggle), for: .valueChanged)
+        driverStatusControl.addTarget(self, action: #selector(handleDriverStatusChange), for: .valueChanged)
     }
     
     private func setupHeader() {
@@ -160,6 +178,25 @@ final class ProfileViewController: UIViewController {
                 try await UserService.shared.updateSettings(biometricsEnabled: isEnabled)
             } catch {
                 print("Failed to update biometric preference: \(error)")
+            }
+        }
+    }
+
+    @objc private func handleDriverStatusChange() {
+        let status: DriverState
+        switch driverStatusControl.selectedSegmentIndex {
+        case 0: status = .idle
+        case 1: status = .busy
+        case 2: status = .overloaded
+        default: status = .offline
+        }
+        
+        Task {
+            do {
+                try await LogisticsService.shared.updateStatus(status: status)
+                // Add a small success toast if needed
+            } catch {
+                print("Failed to update driver status: \(error)")
             }
         }
     }
@@ -195,7 +232,8 @@ extension ProfileViewController: UITableViewDataSource, UITableViewDelegate, Ske
         case .account: return 3
         case .payments: return 1
         case .security: return 2
-        case .logistics: return 1
+        case .logistics: 
+            return userData?.role == .driver ? 2 : 1
         case .system: return 1
         }
     }
@@ -235,7 +273,13 @@ extension ProfileViewController: UITableViewDataSource, UITableViewDelegate, Ske
                 cell.textLabel?.text = "Pin Settings"
             }
         case .logistics:
-            cell.textLabel?.text = "Alamat Tersimpan"
+            if indexPath.row == 0 {
+                cell.textLabel?.text = "Alamat Tersimpan"
+            } else {
+                cell.textLabel?.text = "Driver Status"
+                cell.accessoryView = driverStatusControl
+                cell.selectionStyle = .none
+            }
         case .system:
             cell.textLabel?.text = "Logout"
             cell.textLabel?.textColor = .systemRed
