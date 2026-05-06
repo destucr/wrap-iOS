@@ -36,7 +36,8 @@ final class ProfileViewController: UIViewController {
     
     // Header View Components
     private let headerView: UIView = {
-        let view = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 120))
+        let view = UIView()
+        view.frame = CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 120)
         return view
     }()
     

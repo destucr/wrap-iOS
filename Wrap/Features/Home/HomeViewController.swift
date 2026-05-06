@@ -152,12 +152,22 @@ final class HomeViewController: UIViewController {
         viewModel.$etaInfo
             .receive(on: RunLoop.main)
             .sink { [weak self] info in
+                guard let self = self else { return }
                 if let info = info {
-                    self?.etaBanner.isHidden = false
-                    self?.etaBanner.configure(with: info)
+                    self.etaBanner.isHidden = false
+                    self.etaBanner.configure(with: info)
+                    // Ensure it takes space
+                    self.etaBanner.snp.updateConstraints { make in
+                        make.top.equalTo(self.searchBar.snp.bottom).offset(12)
+                    }
                 } else {
-                    self?.etaBanner.isHidden = true
+                    self.etaBanner.isHidden = true
+                    // Collapse the top offset to remove ghost space
+                    self.etaBanner.snp.updateConstraints { make in
+                        make.top.equalTo(self.searchBar.snp.bottom).offset(0)
+                    }
                 }
+                self.view.layoutIfNeeded()
             }
             .store(in: &cancellables)
 

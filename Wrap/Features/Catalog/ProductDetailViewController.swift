@@ -150,11 +150,24 @@ final class ProductDetailViewController: UIViewController {
         
         bottomBar.snp.makeConstraints { make in
             make.bottom.leading.trailing.equalToSuperview()
-            make.height.equalTo(100 + (UIApplication.shared.windows.first?.safeAreaInsets.bottom ?? 0))
         }
         
+        // Add a container for the bottom bar content that respects safe area
+        let bottomContent = UIView()
+        bottomBar.addSubview(bottomContent)
+        bottomContent.snp.makeConstraints { make in
+            make.top.leading.trailing.equalToSuperview()
+            make.bottom.equalTo(view.safeAreaLayoutGuide)
+            make.height.equalTo(80)
+        }
+
+        bottomContent.addSubview(stepper)
+        bottomContent.addSubview(buyNowButton)
+        
+        stepper.delegate = self
+        
         stepper.snp.makeConstraints { make in
-            make.top.equalToSuperview().offset(16)
+            make.centerY.equalToSuperview()
             make.leading.equalToSuperview().offset(20)
             make.width.equalTo(120)
             make.height.equalTo(44)
@@ -190,6 +203,7 @@ final class ProductDetailViewController: UIViewController {
         priceLabel.snp.makeConstraints { make in
             make.top.equalTo(imageView.snp.bottom).offset(20)
             make.leading.equalToSuperview().offset(20)
+            make.trailing.lessThanOrEqualToSuperview().offset(-20)
         }
         
         nameLabel.snp.makeConstraints { make in

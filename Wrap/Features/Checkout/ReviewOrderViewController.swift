@@ -136,7 +136,22 @@ final class ReviewOrderViewController: UIViewController {
         
         bottomPaymentBar.snp.makeConstraints { make in
             make.leading.trailing.bottom.equalToSuperview()
-            make.height.equalTo(100)
+        }
+        
+        let barContent = UIView()
+        bottomPaymentBar.addSubview(barContent)
+        barContent.snp.makeConstraints { make in
+            make.top.leading.trailing.equalToSuperview()
+            make.bottom.equalTo(view.safeAreaLayoutGuide)
+            make.height.equalTo(80)
+        }
+
+        [finalAmountLabel, totalLabel, payButton, bottomSeparator].forEach { barContent.addSubview($0) }
+        bottomSeparator.backgroundColor = Brand.secondary
+        
+        tableView.snp.makeConstraints { make in
+            make.top.leading.trailing.equalToSuperview()
+            make.bottom.equalTo(bottomPaymentBar.snp.top)
         }
         
         bottomSeparator.snp.makeConstraints { make in
