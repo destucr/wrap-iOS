@@ -50,6 +50,11 @@ class SearchViewController: UIViewController {
         searchBar.becomeFirstResponder()
     }
     
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        searchTask?.cancel()
+    }
+    
     private func setupNavigationBar() {
         navigationItem.titleView = searchBar
         searchBar.delegate = self

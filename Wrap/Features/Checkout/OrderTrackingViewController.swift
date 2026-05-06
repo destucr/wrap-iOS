@@ -56,12 +56,22 @@ class OrderTrackingViewController: UIViewController {
         startPolling()
     }
     
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        pollingTask?.cancel()
+    }
+    
     private func startPolling() {
-        Task {
+        pollingTask = Task {
             // Polling every 5 seconds for simulation purposes
             for _ in 1...20 {
+                if Task.isCancelled { return }
+                
                 do {
                     let order: Order = try await NetworkManager.shared.request(endpoint: "/user/orders/\(orderId)")
+                    
+                    if Task.isCancelled { return }
+                    
                     updateUI(with: order)
                     if order.deliveryStatus == .delivered {
                         break
@@ -69,6 +79,7 @@ class OrderTrackingViewController: UIViewController {
                 } catch {
                     print("Polling failed: \(error)")
                 }
+                
                 try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
             }
         }
